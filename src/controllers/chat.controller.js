@@ -31,12 +31,12 @@ export const postRoomChat = async (req, res) => {
             participantsHash: hash,
             users: [
                 {
-                    userId: sender._id,
+                    user_id: sender._id,
                     nickname: sender.displayName,
                     role: "owner"
                 },
                 {
-                    userId: receiver._id,
+                    user_id: receiver._id,
                     nickname: receiver.displayName,
                     role: "owner"
                 }
@@ -59,9 +59,14 @@ export const postRoomChat = async (req, res) => {
 };
 export const getRoomChat = async (req, res) => {
     try {
-        const userId = req.user.userId
-
+        // const userId = req.user.userId
+        const userId = req.body.userId
+        const rooms = await RoomChat.find({
+            "users.user_id": userId,
+            isDeleted: false
+        }).sort({ updatedAt: -1 })
+        return res.status(200).json(rooms)
     } catch (error) {
-
+        return res.status(500).json({ message: error.message });
     }
 };

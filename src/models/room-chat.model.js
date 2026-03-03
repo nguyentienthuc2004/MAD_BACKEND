@@ -7,11 +7,12 @@ const roomChatSchema = new mongoose.Schema(
         typeRoom: String, // Ví dụ: "group" hoặc "friend"
         status: String,
         users: [{
+            _id: false,
             user_id: String,
             nickname: String,
             role: String, // owner // co_owner //member
         }],
-        participantsHash: String, // Chống tạo trùng
+        participantsHash: { type: String, unique: true }, // Chống tạo trùng
         lastMessage: {
             content: String,
             sender: String, // UserId của người gửi
