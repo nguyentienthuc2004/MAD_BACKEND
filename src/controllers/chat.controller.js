@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import RoomChat from "../models/room-chat.model.js";
+import Message from "../models/message.model.js";
 
 
 export const postRoomChat = async (req, res) => {
@@ -57,6 +58,7 @@ export const postRoomChat = async (req, res) => {
         return res.status(500).json({ message: error.message });
     }
 };
+
 export const getRoomChat = async (req, res) => {
     try {
         // const userId = req.user.userId
@@ -65,8 +67,23 @@ export const getRoomChat = async (req, res) => {
             "users.user_id": userId,
             isDeleted: false
         }).sort({ updatedAt: -1 })
+
         return res.status(200).json(rooms)
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
 };
+// [GET] chat/rooms/:roomId/messages"
+export const getMessage = async (req, res) => {
+    try {
+        const roomId = req.params.roomId
+        const messages = await Message.find({
+            room_id: roomId,
+            isDeleted: false
+        }).sort({ createAt: -1 }).limit(10)
+        return res.status(200).json(messages);
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};
+
