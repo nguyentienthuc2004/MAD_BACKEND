@@ -25,19 +25,16 @@ const userSchema = new mongoose.Schema(
       minlength: [6, "Password must be at least 6 characters"],
       select: false, //không trả pass khi query
     },
+    phoneNumber: {
+      type: String,
+      default: "",
+      trim: true,
+      match: [/^\+?[0-9]\d{1,14}$/, "Please enter a valid phone number"],
+    },
     displayName: {
       type: String,
       default: "",
       trim: true,
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
     },
     status: {
       type: String,

@@ -10,21 +10,22 @@ import {
 
 export const register = async (req, res) => {
   try {
-    const { username, email, password, displayName } = req.body;
+    const { username, email, password, confirmPassword, phoneNumber } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !confirmPassword || !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: "Please provide username, email and password",
+        message: "Please provide username, email, password, confirm password and phone number",
       });
     }
 
-    if (password.length < 6) {
+    if (password !== confirmPassword) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters",
+        message: "Password and confirm password do not match",
       });
     }
+
 
     const existingEmail = await User.findOne({ email: email.toLowerCase() });
     if (existingEmail) {
@@ -46,13 +47,13 @@ export const register = async (req, res) => {
       username,
       email: email.toLowerCase(),
       password,
-      displayName: displayName || username,
+      phoneNumber,
+      
     });
 
     const accessToken = generateAccessToken({
       userId: user._id,
       email: user.email,
-      role: user.role,
     });
     const refreshToken = await generateRefreshToken(user._id);
 
@@ -143,7 +144,6 @@ export const login = async (req, res) => {
     const accessToken = generateAccessToken({
       userId: user._id,
       email: user.email,
-      role: user.role,
     });
     const refreshToken = await generateRefreshToken(user._id);
 
@@ -208,7 +208,6 @@ export const refreshToken = async (req, res) => {
     const accessToken = generateAccessToken({
       userId: user._id,
       email: user.email,
-      role: user.role,
     });
 
     res.status(200).json({
