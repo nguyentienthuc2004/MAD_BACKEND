@@ -10,7 +10,11 @@ const roomChatSchema = new mongoose.Schema(
             _id: false,
             user_id: String,
             nickname: String,
-            role: String, // owner // co_owner //member
+            role: {
+                type: String,
+                enum: ['owner', 'member', 'co_owner'],
+                default: 'owner'
+            }, // owner // co_owner //member
         }],
         participantsHash: { type: String, unique: true }, // Chống tạo trùng
         lastMessage: {
