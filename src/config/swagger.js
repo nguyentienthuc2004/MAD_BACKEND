@@ -256,6 +256,19 @@ const swaggerOptions = {
             },
           },
         },
+        DeletePostResponse: {
+          type: "object",
+          properties: {
+            success: {
+              type: "boolean",
+              example: true,
+            },
+            message: {
+              type: "string",
+              example: "Post deleted successfully",
+            },
+          },
+        },
       },
     },
     security: [

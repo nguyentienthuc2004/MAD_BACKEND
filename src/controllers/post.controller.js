@@ -201,3 +201,47 @@ export const editPost = async (req, res) => {
     });
   }
 };
+
+export const deletePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const user = req.user;
+
+    if (!user?.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const post = await Post.findById(postId);
+
+    if (!post || post.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Post not found",
+      });
+    }
+
+    if (String(post.userId) !== String(user.userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to delete this post",
+      });
+    }
+
+    post.isDeleted = true;
+    await post.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Post deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting the post",
+      error: error.message,
+    });
+  }
+};
