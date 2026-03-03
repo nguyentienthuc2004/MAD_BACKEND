@@ -7,7 +7,7 @@ const refreshTokenSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    token: {
+    hashToken: {
       type: String,
       required: true,
       unique: true,

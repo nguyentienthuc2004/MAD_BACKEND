@@ -41,7 +41,6 @@ export const authenticate = async (req, res, next) => {
     req.user = {
       userId: user._id,
       email: user.email,
-      role: user.role,
       username: user.username,
     };
 
@@ -69,26 +68,3 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-//middleware kiểm tra role
-export const authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Access denied. Required role: ${roles.join(" or ")}`,
-      });
-    }
-
-    next();
-  };
-};
-
-export const isAdmin = authorize("admin");
-export const isUserOrAdmin = authorize("user", "admin");
