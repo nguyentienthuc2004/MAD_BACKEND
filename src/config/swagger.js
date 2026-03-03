@@ -79,6 +79,113 @@ const swaggerOptions = {
             },
           },
         },
+        PostCreateRequest: {
+          type: "object",
+          properties: {
+            caption: {
+              type: "string",
+              example: "Outfit of the day",
+            },
+            hashtags: {
+              description:
+                "Array of hashtag strings. For multipart/form-data, you can send repeated fields (hashtags=fashion&hashtags=ootd) or a JSON/comma-separated string",
+              oneOf: [
+                {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                  example: ["fashion", "ootd"],
+                },
+                {
+                  type: "string",
+                  example: '["fashion","ootd"]',
+                },
+                {
+                  type: "string",
+                  example: "fashion,ootd",
+                },
+              ],
+            },
+            musicId: {
+              type: "string",
+              nullable: true,
+              example: "65f123abc456def789012345",
+            },
+            images: {
+              type: "array",
+              description: "Up to 10 image files",
+              items: {
+                type: "string",
+                format: "binary",
+              },
+            },
+          },
+        },
+        Post: {
+          type: "object",
+          properties: {
+            _id: {
+              type: "string",
+              example: "67c4f1b2c3d4e5f678901234",
+            },
+            userId: {
+              type: "string",
+              example: "507f1f77bcf86cd799439011",
+            },
+            caption: {
+              type: "string",
+              example: "Outfit of the day",
+            },
+            hashtags: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              example: ["fashion", "ootd"],
+            },
+            images: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              example: ["https://res.cloudinary.com/demo/image/upload/sample.jpg"],
+            },
+            musicId: {
+              type: "string",
+              nullable: true,
+              example: "65f123abc456def789012345",
+            },
+            isDeleted: {
+              type: "boolean",
+              example: false,
+            },
+            createdAt: {
+              type: "string",
+              format: "date-time",
+            },
+            updatedAt: {
+              type: "string",
+              format: "date-time",
+            },
+          },
+        },
+        CreatePostResponse: {
+          type: "object",
+          properties: {
+            success: {
+              type: "boolean",
+              example: true,
+            },
+            message: {
+              type: "string",
+              example: "Post created successfully",
+            },
+            data: {
+              $ref: "#/components/schemas/Post",
+            },
+          },
+        },
       },
     },
     security: [
