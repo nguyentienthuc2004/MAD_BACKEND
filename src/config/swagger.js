@@ -122,6 +122,76 @@ const swaggerOptions = {
             },
           },
         },
+        PostEditRequest: {
+          type: "object",
+          properties: {
+            caption: {
+              type: "string",
+              example: "Updated caption",
+            },
+            hashtags: {
+              description:
+                "Array of hashtag strings. For multipart/form-data, you can send repeated fields (hashtags=fashion&hashtags=ootd) or a JSON/comma-separated string",
+              oneOf: [
+                {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                  example: ["fashion", "ootd"],
+                },
+                {
+                  type: "string",
+                  example: '["fashion","ootd"]',
+                },
+                {
+                  type: "string",
+                  example: "fashion,ootd",
+                },
+              ],
+            },
+            musicId: {
+              type: "string",
+              nullable: true,
+              description: "Set null to remove music",
+              example: "65f123abc456def789012345",
+            },
+            existingImages: {
+              description:
+                "Old image URLs to keep. Send as JSON array string, comma-separated string, or repeated field",
+              oneOf: [
+                {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                  example: [
+                    "https://res.cloudinary.com/demo/image/upload/v1/old-1.jpg",
+                    "https://res.cloudinary.com/demo/image/upload/v1/old-2.jpg",
+                  ],
+                },
+                {
+                  type: "string",
+                  example:
+                    '["https://res.cloudinary.com/demo/image/upload/v1/old-1.jpg"]',
+                },
+                {
+                  type: "string",
+                  example:
+                    "https://res.cloudinary.com/demo/image/upload/v1/old-1.jpg,https://res.cloudinary.com/demo/image/upload/v1/old-2.jpg",
+                },
+              ],
+            },
+            images: {
+              type: "array",
+              description: "New image files to add (up to 10 total after merge)",
+              items: {
+                type: "string",
+                format: "binary",
+              },
+            },
+          },
+        },
         Post: {
           type: "object",
           properties: {
