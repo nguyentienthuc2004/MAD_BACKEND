@@ -26,7 +26,6 @@ export const register = async (req, res) => {
       });
     }
 
-
     const existingEmail = await User.findOne({ email: email.toLowerCase() });
     if (existingEmail) {
       return res.status(400).json({
@@ -48,7 +47,6 @@ export const register = async (req, res) => {
       email: email.toLowerCase(),
       password,
       phoneNumber,
-      
     });
 
     const accessToken = generateAccessToken({
@@ -182,6 +180,7 @@ export const refreshToken = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: "Invalid or expired refresh token",
+        code: "REFRESH_TOKEN_EXPIRED", // Client sẽ dựa vào code này để logout
       });
     }
 
@@ -202,7 +201,7 @@ export const refreshToken = async (req, res) => {
         message: "Your account has been banned",
       });
     }
-
+    //cho client token moi, tranh dang nhap nhieu lan
     const newRefreshToken = await rotateRefreshToken(token, user._id);
 
     const accessToken = generateAccessToken({
