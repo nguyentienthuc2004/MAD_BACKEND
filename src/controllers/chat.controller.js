@@ -1,8 +1,8 @@
-import User from "../models/User.js";
+import User from "../models/user.model.js";
 import RoomChat from "../models/room-chat.model.js";
 import Message from "../models/message.model.js";
 
-
+// [POST] api/chat/rooms
 export const postRoomChat = async (req, res) => {
     try {
         const receiverId = req.body.receiverId
@@ -74,7 +74,7 @@ export const postRoomChat = async (req, res) => {
         });
     }
 };
-
+// [GET] api/chat/rooms
 export const getRoomChat = async (req, res) => {
     try {
         const userId = req.user.userId
@@ -97,7 +97,7 @@ export const getRoomChat = async (req, res) => {
         });
     }
 };
-// [GET] chat/rooms/:roomId/messages
+// [GET] api/chat/rooms/:roomId/messages
 export const getMessage = async (req, res) => {
     try {
         const roomId = req.params.roomId
@@ -119,7 +119,7 @@ export const getMessage = async (req, res) => {
     }
 };
 
-// [POST] chat/rooms/:roomId/messages
+// [POST] api/chat/rooms/:roomId/messages
 export const sendMessage = async (req, res) => {
     try {
         const { content } = req.body
@@ -179,4 +179,33 @@ export const sendMessage = async (req, res) => {
         });
     }
 
+}
+// [PATCH] api/rooms/:roomId/users/nicknames
+export const editNickname = async (req, res) => {
+    try {
+        const roomId = req.params.roomId
+        const { nicknames } = req.body
+
+        if (!Array.isArray(nicknames) || nicknames.length === 0) {
+            return res.status(400).json({ message: "Dữ liệu nicknames không hợp lệ" });
+        }
+        const bulkOps = nicknames.map((item) => ({
+            updateOne: {
+                filter: { _id: roomId, "users.user_id": item.userId },
+                update: { $set: { "users.$.nickname": item.nickname } }
+            }
+        }))
+        const result = await RoomChat.bulkWrite(bulkOps)
+        const roomChat = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false
+        })
+        return res.status(200).json({
+            success: true,
+            message: "Cập nhật thành công",
+            data: roomChat
+        })
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi Server", error: error.message });
+    }
 }
