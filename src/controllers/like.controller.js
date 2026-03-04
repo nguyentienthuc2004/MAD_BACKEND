@@ -43,9 +43,9 @@ export const likePost = async (req, res) => {
       });
 
       liked = true;
-
+    //thong bao cho chu post
       await notificationService.createAndEmit({
-        recipientId: post.userId,
+        userId: post.userId,
         actorId: userId,
         type: "like_post",
         targetPostId: postId,
@@ -67,7 +67,7 @@ export const likePost = async (req, res) => {
       liked = true;
 
       await notificationService.createAndEmit({
-        recipientId: post.userId,
+        userId: post.userId,
         actorId: userId,
         type: "like_post",
         targetPostId: postId,
@@ -136,9 +136,9 @@ export const likeComment = async (req, res) => {
       });
 
       liked = true;
-
+      //thong bao cho chu comment
       await notificationService.createAndEmit({
-        recipientId: comment.userId,
+        userId: comment.userId,
         actorId: userId,
         type: "like_comment",
         targetPostId: comment.postId,
@@ -161,7 +161,7 @@ export const likeComment = async (req, res) => {
       liked = true;
 
       await notificationService.createAndEmit({
-        recipientId: comment.userId,
+        userId: comment.userId,
         actorId: userId,
         type: "like_comment",
         targetPostId: comment.postId,
@@ -194,7 +194,7 @@ export const likeComment = async (req, res) => {
     });
   }
 };
-
+//check xem th user da like chua de toogle nut like fe
 export const checkLikeStatus = async (req, res) => {
   try {
     const { targetType, targetId } = req.params;

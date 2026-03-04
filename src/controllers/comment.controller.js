@@ -32,7 +32,7 @@ export const createComment = async (req, res) => {
       content: content.trim(),
       parentCommentId: null,
     });
-
+    //thong bao cho chu post
     await notificationService.createAndEmit({
       userId: post.userId,
       actorId: userId,
@@ -114,7 +114,7 @@ export const replyToComment = async (req, res) => {
       parentCommentId: parentComment._id,
       mentionUserId: parentComment.userId,
     });
-
+    //thong bao cho nguoi duoc reply
     await notificationService.createAndEmit({
       userId: parentComment.userId,
       actorId: userId,
@@ -123,7 +123,7 @@ export const replyToComment = async (req, res) => {
       targetCommentId: reply._id,
       data: { postId, commentId: reply._id, parentCommentId },
     });
-
+    //thong bao cho chu bai viet
     if (post.userId.toString() !== parentComment.userId.toString() &&
         post.userId.toString() !== userId.toString()) {
       await notificationService.createAndEmit({
@@ -135,7 +135,7 @@ export const replyToComment = async (req, res) => {
         data: { postId, commentId: reply._id },
       });
     }
-
+    //thong bao cho nguoi duoc nhac den trong reply
     if (parentComment.mentionUserId &&
         parentComment.mentionUserId.toString() !== userId.toString() &&
         parentComment.mentionUserId.toString() !== parentComment.userId.toString()) {
