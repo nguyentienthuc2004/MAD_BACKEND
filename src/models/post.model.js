@@ -29,6 +29,14 @@ const postSchema = new mongoose.Schema(
       ref: "Music",
       default: null,
     },
+    likeCount: {
+      type: Number,
+      default: 0,
+    },
+    commentCount: {
+      type: Number,
+      default: 0,
+    },
     isDeleted: {
       type: Boolean,
       default: false,
