@@ -1,5 +1,5 @@
 import { verifyAccessToken } from "../utils/generateToken.js";
-import User from "../models/User.js";
+import User from "../models/user.model.js";
 
 //middleware xác thực access token
 export const authenticate = async (req, res, next) => {

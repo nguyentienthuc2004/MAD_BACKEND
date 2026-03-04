@@ -2,6 +2,7 @@
 
 ```bash
 git clone https://github.com/nguyentienthuc2004/MAD_BACKEND.git
+cd MAD_BACKEND
 ```
 
 ### 2) Cài dependencies
