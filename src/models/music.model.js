@@ -17,6 +17,11 @@ const musicSchema = new mongoose.Schema(
       required: [true, "URL is required"],
       trim: true,
     },
+    image:{
+      type: String,
+      required: [true, "Image URL is required"],  
+      trim: true,
+    },
     isDeleted: {
       type: Boolean,
       default: false,
