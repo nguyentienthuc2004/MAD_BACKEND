@@ -47,6 +47,7 @@ export const register = async (req, res) => {
       email: email.toLowerCase(),
       password,
       phoneNumber,
+      avatarUrl: `https://res.cloudinary.com/ddfrjhhro/image/upload/v1773021182/avatar_trang_1_cd729c335b_rhsqgr.jpg`,
     });
 
     const accessToken = generateAccessToken({
