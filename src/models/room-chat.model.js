@@ -17,7 +17,7 @@ const roomChatSchema = new mongoose.Schema(
                 default: 'owner'
             }, // owner // co_owner //member
         }],
-        participantsHash: { type: String, unique: true }, // Chống tạo trùng
+        participantsHash: { type: String, unique: true, sparse: true }, // Chống tạo trùng
         lastMessage: {
             content: String,
             sender: String, // UserId của người gửi

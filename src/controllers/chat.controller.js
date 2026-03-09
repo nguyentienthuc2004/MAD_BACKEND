@@ -127,7 +127,6 @@ export const sendMessage = async (req, res) => {
         const { content } = req.body
         const roomId = req.params.roomId
         const userId = req.user.userId
-
         if (!content || typeof content !== "string" || !content.trim()) {
             return res.status(400).json({
                 success: false,
@@ -145,10 +144,10 @@ export const sendMessage = async (req, res) => {
             });
         }
         const isMember = room.users.some(
-            user => user.user_id.toString() === userId
+            user => user.user_id.toString() === userId.toString()
         );
         if (!isMember) {
-            return res.status(403).json({
+            return res.status(400).json({
                 success: false,
                 message: "Bạn không thuộc phòng chat này",
             });
@@ -209,5 +208,66 @@ export const editNickname = async (req, res) => {
         })
     } catch (error) {
         return res.status(500).json({ message: "Lỗi Server", error: error.message });
+    }
+}
+// [POST] api/groups
+export const createGroup = async (req, res) => {
+    const { title, avatar, usersId } = req.body
+    const userId = req.user.userId
+    try {
+        if (!title) {
+            return res.status(400).json({ message: "Chưa đặt tên cho nhóm" })
+        }
+        if (!Array.isArray(usersId) || usersId.length === 0) {
+            return res.status(400).json({ message: "Danh sách thành viên không hợp lệ" });
+        }
+        // Loại bỏ id của mình nếu có
+        const filteredUserIds = usersId.filter(id => id.toString() !== userId.toString());
+        const users = []
+        const myUser = await User.findOne({
+            _id: userId,
+            isDeleted: false
+        }).select("-password")
+        if (myUser) {
+            users.push({
+                user_id: myUser.id,
+                nickname: myUser.username,
+                avatar: myUser.avatarUrl,
+                role: "owner" // owner // co_owner //member
+            })
+        }
+        for (const id of filteredUserIds) {
+            const user = await User.findOne({
+                _id: id,
+                isDeleted: false
+            }).select("-password")
+            if (user) {
+                users.push({
+                    user_id: user.id,
+                    nickname: user.username,
+                    avatar: user.avatarUrl,
+                    role: "member" // owner // co_owner //member
+                })
+            }
+        }
+
+        const group = await RoomChat.create({
+            title: title,
+            avatar: avatar || "",
+            typeRoom: "group",
+            isDeleted: false,
+            users: users
+        });
+        return res.status(201).json({
+            success: true,
+            message: "Tạo nhóm chat thành công",
+            data: { group },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
     }
 }
