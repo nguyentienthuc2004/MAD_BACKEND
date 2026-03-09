@@ -31,8 +31,8 @@ export const postRoomChat = async (req, res) => {
                 data: { room: existingRoom },
             });
         }
-        const receiver = await User.findById(receiverId).select("username");
-        const sender = await User.findById(userId).select("username");
+        const receiver = await User.findById(receiverId).select("username avatarUrl");
+        const sender = await User.findById(userId).select("username avatarUrl");
         const room = await RoomChat.create({
             typeRoom: "friend",
             isDeleted: false,
@@ -40,12 +40,14 @@ export const postRoomChat = async (req, res) => {
             users: [
                 {
                     user_id: sender._id,
-                    nickname: sender.displayName,
+                    nickname: sender.username,
+                    avatar: sender.avatarUrl,
                     role: "owner"
                 },
                 {
                     user_id: receiver._id,
-                    nickname: receiver.displayName,
+                    nickname: receiver.username,
+                    avatar: receiver.avatarUrl,
                     role: "owner"
                 }
             ]
