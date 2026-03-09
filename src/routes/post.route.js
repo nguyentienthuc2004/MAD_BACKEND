@@ -1,8 +1,10 @@
-import { createPost, editPost, deletePost } from "../controllers/post.controller.js";
+import { createPost, editPost, deletePost, getPostsByUser } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
 
+
+router.get("/byUser/:userId", getPostsByUser);
 /**
  * @swagger
  * /api/posts/create:
