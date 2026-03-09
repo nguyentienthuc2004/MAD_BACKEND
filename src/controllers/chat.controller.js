@@ -271,3 +271,52 @@ export const createGroup = async (req, res) => {
         });
     }
 }
+
+// [PATCH] api/room/:roomId
+export const editRoom = async (req, res) => {
+    const roomId = req.params.roomId
+    try {
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false
+        })
+        if (room.typeRoom !== "group") {
+            return res.status(400).json({ message: "Phòng chat không hợp lệ" })
+        }
+        const { title, avatar } = req.body
+        if (!title) {
+            title = room.title
+        }
+        if (!avatar) {
+            avatar = room.avatar
+        }
+        const userId = req.user.userId
+        const member = room.users.find(
+            user => user.user_id.toString() === userId.toString()
+        )
+        if (!member) {
+            return res.status(200).json({ message: "Người này không có trong đoạn chat" })
+        }
+        if (member.role !== "owner" && member.role !== "co_owner") {
+            return res.status(200).json({ message: "Người này không có quyền thực hiện" })
+        }
+        await RoomChat.updateOne({
+            _id: roomId,
+            isDeleted: false
+        }, {
+            title: title,
+            avatar: avatar
+        })
+        return res.status(200).json({
+            message: "Thay đổi thành công",
+            data: room
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+
+}
