@@ -10,6 +10,7 @@ const roomChatSchema = new mongoose.Schema(
             _id: false,
             user_id: String,
             nickname: String,
+            avatar: String,
             role: {
                 type: String,
                 enum: ['owner', 'member', 'co_owner'],
