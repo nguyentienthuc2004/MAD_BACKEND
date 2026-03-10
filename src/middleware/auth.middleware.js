@@ -42,8 +42,9 @@ export const authenticate = async (req, res, next) => {
       userId: user._id,
       email: user.email,
       username: user.username,
+      displayName: user.displayName,
     };
-
+    
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {
