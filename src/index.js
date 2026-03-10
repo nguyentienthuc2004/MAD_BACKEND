@@ -8,6 +8,7 @@ import { notFound, errorHandler } from "./middleware/error.middleware.js";
 // Socket io
 import { Server } from "socket.io";
 import http from "http";
+import { registerChatSocket } from "./socket/chat.socket.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,17 +45,8 @@ const io = new Server(server, {
 app.set("io", io);
 global._io = io;
 
-// Lắng nghe kết nối socket và cho phép join room theo roomId
-io.on("connection", (socket) => {
-  console.log("Socket connected", socket.id);
-  socket.on("JOIN_ROOM", (roomId) => {
-    if (!roomId) return;
-    socket.join(String(roomId));
-  });
-  socket.on("disconnect", () => {
-    console.log("Socket disconnected", socket.id);
-  });
-});
+// Đăng ký các handler socket (JOIN_ROOM, message, ...)
+registerChatSocket(io);
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
