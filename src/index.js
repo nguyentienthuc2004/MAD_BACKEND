@@ -39,7 +39,22 @@ const io = new Server(server, {
     origin: "*",
   },
 });
-global._io = io
+
+// Lưu io để có thể lấy trong controller qua req.app.get("io")
+app.set("io", io);
+global._io = io;
+
+// Lắng nghe kết nối socket và cho phép join room theo roomId
+io.on("connection", (socket) => {
+  console.log("Socket connected", socket.id);
+  socket.on("JOIN_ROOM", (roomId) => {
+    if (!roomId) return;
+    socket.join(String(roomId));
+  });
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected", socket.id);
+  });
+});
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);

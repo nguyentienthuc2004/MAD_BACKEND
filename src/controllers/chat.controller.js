@@ -1,7 +1,6 @@
 import User from "../models/user.model.js";
 import RoomChat from "../models/room-chat.model.js";
 import Message from "../models/message.model.js";
-
 // [POST] api/chat/rooms
 export const postRoomChat = async (req, res) => {
     try {
@@ -103,6 +102,7 @@ export const getRoomChat = async (req, res) => {
 export const getMessage = async (req, res) => {
     try {
         const roomId = req.params.roomId
+
         const messages = await Message.find({
             room_id: roomId,
             isDeleted: false
@@ -127,6 +127,7 @@ export const sendMessage = async (req, res) => {
         const { content } = req.body
         const roomId = req.params.roomId
         const userId = req.user.userId
+
         if (!content || typeof content !== "string" || !content.trim()) {
             return res.status(400).json({
                 success: false,
@@ -167,11 +168,16 @@ export const sendMessage = async (req, res) => {
                 createdAt: message.createdAt
             },
         })
+        // Socket io 
+        const io = req.app.get("io");
+        io.to(roomId).emit("SEVER_SEND_MESSAGE", message);
+
         return res.status(201).json({
             success: true,
             message: "Gửi tin nhắn thành công",
             data: { message },
         });
+
     } catch (error) {
         return res.status(500).json({
             success: false,
@@ -181,7 +187,7 @@ export const sendMessage = async (req, res) => {
     }
 
 }
-// [PATCH] api/rooms/:roomId/users/nicknames
+// [PATCH] api/chat/rooms/:roomId/users/nicknames
 export const editNickname = async (req, res) => {
     try {
         const roomId = req.params.roomId
@@ -210,7 +216,7 @@ export const editNickname = async (req, res) => {
         return res.status(500).json({ message: "Lỗi Server", error: error.message });
     }
 }
-// [POST] api/groups
+// [POST] api/chat/groups
 export const createGroup = async (req, res) => {
     const { title, avatar, usersId } = req.body
     const userId = req.user.userId
@@ -272,7 +278,7 @@ export const createGroup = async (req, res) => {
     }
 }
 
-// [PATCH] api/room/:roomId
+// [PATCH] api/chat/room/:roomId
 export const editRoom = async (req, res) => {
     const roomId = req.params.roomId
     try {
@@ -318,5 +324,10 @@ export const editRoom = async (req, res) => {
             details: error.message,
         });
     }
+
+}
+
+// [GET] api/chat/room/:roomId/member
+export const getMember = async (req, res) => {
 
 }
