@@ -101,12 +101,20 @@ export const getRoomChat = async (req, res) => {
 // [GET] api/chat/rooms/:roomId/messages
 export const getMessage = async (req, res) => {
     try {
+        const userId = req.user.userId
         const roomId = req.params.roomId
-
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false,
+            "users.user_id": userId
+        })
+        if (!room) {
+            return res.status(403).json({ message: "Không có phòng chat" })
+        }
         const messages = await Message.find({
             room_id: roomId,
             isDeleted: false
-        }).sort({ createdAt: -1 }).limit(10)
+        }).sort({ createdAt: -1 }).limit(20)
         return res.status(200).json({
             success: true,
             message: "Lấy danh sách tin nhắn thành công",
