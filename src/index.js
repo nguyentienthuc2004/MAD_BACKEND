@@ -5,6 +5,9 @@ import routes from "./routes/index.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
+// Socket io
+import { Server } from "socket.io";
+import http from "http";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,8 +31,17 @@ routes(app);
 
 app.use(notFound);
 app.use(errorHandler);
+// Tạo server socket io
+const server = http.createServer(app);
+//Cấu hình socket
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
+global._io = io
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
 });
