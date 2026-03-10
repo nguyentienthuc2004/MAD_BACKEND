@@ -68,7 +68,28 @@ const normalizeImageUrls = (images) => {
 
   return [];
 };
-
+export const getPostsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(userId);
+    const posts = await Post.find({
+      userId,
+      isDeleted: false,
+    }).sort({ createdAt: -1 });
+    console.log(posts);
+    return res.status(200).json({
+      success: true,
+      message: "Posts retrieved successfully",
+      data: posts,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while retrieving posts",
+      error: error.message,
+    });
+  }
+};
 export const createPost = async (req, res) => {
   try {
     const { caption = "", hashtags, musicId = null } = req.body;

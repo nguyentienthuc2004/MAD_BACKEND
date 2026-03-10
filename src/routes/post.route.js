@@ -1,8 +1,44 @@
-import { createPost, editPost, deletePost } from "../controllers/post.controller.js";
+import { createPost, editPost, deletePost, getPostsByUser } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
 
+
+/**
+ * @swagger
+ * /api/posts/byUser/{userId}:
+ *   get:
+ *     summary: Get posts by user ID
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Posts retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Posts retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *       500:
+ *         description: Server error
+ */
+router.get("/byUser/:userId", getPostsByUser);
 /**
  * @swagger
  * /api/posts/create:
