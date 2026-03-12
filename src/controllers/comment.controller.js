@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Comment from "../models/comment.model.js";
 import Post from "../models/post.model.js";
 import notificationService from "../services/notification.service.js";
+import countService from "../services/count.service.js";
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -180,12 +181,12 @@ export const getComments = async (req, res) => {
   try {
     const { postId } = req.params;
 
-    // if (!isValidObjectId(postId)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Invalid post ID format",
-    //   });
-    // }
+    if (!isValidObjectId(postId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid post ID format",
+      });
+    }
 
     const post = await Post.findOne({ _id: postId, isDeleted: false });
     if (!post) {
@@ -209,11 +210,21 @@ export const getComments = async (req, res) => {
 
     const total = await Comment.countDocuments(rootQuery);
 
+    //them count vao tung comment response
+    const replyCounts = await Promise.all(
+      comments.map((c) => countService.countCommentReplies(c._id))
+    );
+
+    const commentsWithCounts = comments.map((c, idx) => ({
+      ...c,
+      replyCount: replyCounts[idx] || 0,
+    }));
+
     res.status(200).json({
       success: true,
       data: {
         total,
-        comments,
+        comments: commentsWithCounts,
       },
     });
   } catch (error) {
