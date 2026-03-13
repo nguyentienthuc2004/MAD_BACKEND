@@ -222,7 +222,33 @@ export const editPost = async (req, res) => {
     });
   }
 };
+export const getPostById = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const post = await Post.findOne({
+      _id: postId,
+      isDeleted: false,
+    });
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: "Post not found",
+      });
+    }
 
+    return res.status(200).json({
+      success: true,
+      message: "Post retrieved successfully",
+      data: post,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while retrieving the post",
+      error: error.message,
+    });
+  }
+};
 export const deletePost = async (req, res) => {
   try {
     const { postId } = req.params;
