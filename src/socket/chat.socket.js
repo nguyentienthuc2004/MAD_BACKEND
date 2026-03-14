@@ -10,8 +10,17 @@ export const registerChatSocket = (io) => {
 
         socket.on("JOIN_ROOM", async (payload) => {
             try {
-                const { roomId, userId } = payload || {};
-                if (!roomId || !userId) return;
+                const roomId =
+                    typeof payload === "string" ? payload : payload?.roomId;
+                const userId =
+                    typeof payload === "object" && payload !== null
+                        ? payload.userId
+                        : undefined;
+
+                if (!roomId || !userId) {
+                    console.log("JOIN_ROOM invalid payload", payload);
+                    return;
+                }
 
                 const room = await RoomChat.findOne({
                     _id: roomId,
@@ -19,9 +28,13 @@ export const registerChatSocket = (io) => {
                     "users.user_id": userId,
                 });
 
-                if (!room) return;
+                if (!room) {
+                    console.log("JOIN_ROOM denied", { roomId, userId });
+                    return;
+                }
 
                 socket.join(String(roomId));
+                console.log("JOIN_ROOM success", { socketId: socket.id, roomId, userId });
             } catch (error) {
                 console.error("JOIN_ROOM error:", error?.message || error);
             }
