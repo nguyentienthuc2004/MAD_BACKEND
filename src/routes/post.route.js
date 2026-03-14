@@ -1,4 +1,4 @@
-import { createPost, editPost, deletePost, getPostsByUser } from "../controllers/post.controller.js";
+import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
@@ -140,4 +140,6 @@ router.put("/edit/:postId", upload.array("images", 10), editPost);
  *         description: Server error
  */
 router.delete("/delete/:postId", deletePost);
+
+router.get("/getPostsNotByMe",getPostsNotByMe);
 export default router;

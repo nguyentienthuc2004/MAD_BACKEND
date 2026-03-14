@@ -178,7 +178,9 @@ export const sendMessage = async (req, res) => {
         })
         // Socket io 
         const io = req.app.get("io");
-        io.to(roomId).emit("SEVER_SEND_MESSAGE", message);
+        if (io) {
+            io.to(String(roomId)).emit("SERVER_SEND_MESSAGE", message);
+        }
 
         return res.status(201).json({
             success: true,

@@ -1,5 +1,6 @@
 import express from "express";
 import { getUsers } from "../controllers/user.controller.js";
+import { getUserDetail } from "../controllers/post.controller.js";
 
 const router = express.Router();
 
@@ -37,5 +38,5 @@ const router = express.Router();
  *                     example: a@gmail.com
  */
 router.get("/", getUsers);
-
+router.get("/:id", getUserDetail);
 export default router;
