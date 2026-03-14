@@ -5,6 +5,7 @@ import {
   likeComment,
   checkLikeStatus,
   getPostLikes,
+  getCommentLikes,
 } from "../controllers/like.controller.js";
 
 const router = express.Router();
@@ -97,6 +98,8 @@ router.post("/posts/:postId/like", authenticate, likePost);
  *         description: Server error
  */
 router.post("/comments/:commentId/like", authenticate, likeComment);
+
+router.get("/comments/:commentId/likes", getCommentLikes);
 
 /**
  * @swagger

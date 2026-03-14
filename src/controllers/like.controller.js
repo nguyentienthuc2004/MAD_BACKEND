@@ -277,3 +277,45 @@ export const getPostLikes = async (req, res) => {
     });
   }
 };
+
+  export const getCommentLikes = async (req, res) => {
+    try {
+      const { commentId } = req.params;
+
+      if (!isValidObjectId(commentId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid comment ID format",
+        });
+      }
+
+      const likes = await Like.find({
+        targetType: "comment",
+        targetId: commentId,
+        isDeleted: false,
+      })
+        .sort({ createdAt: -1 })
+        .populate("userId", "username avatar")
+        .lean();
+
+      const total = await Like.countDocuments({
+        targetType: "comment",
+        targetId: commentId,
+        isDeleted: false,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          total,
+          likes: likes.map((l) => l.userId),
+        },
+      });
+    } catch (error) {
+      console.error("Get comment likes error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+  };
