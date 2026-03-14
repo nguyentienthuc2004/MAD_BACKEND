@@ -1,6 +1,7 @@
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { countPostLikes, countPostComments } from "../services/count.service.js";
 
 const normalizeHashtags = (hashtags) => {
   const sanitize = (value) =>
@@ -77,11 +78,18 @@ export const getPostsByUser = async (req, res) => {
       userId,
       isDeleted: false,
     }).sort({ createdAt: -1 });
-    console.log(posts);
+    const enriched = await Promise.all(
+      posts.map(async (p) => ({
+        ...p.toObject(),
+        likeCount: await countPostLikes(p._id),
+        commentCount: await countPostComments(p._id),
+      })),
+    );
+
     return res.status(200).json({
       success: true,
       message: "Posts retrieved successfully",
-      data: posts,
+      data: enriched,
     });
   } catch (error) {
     return res.status(500).json({
@@ -237,10 +245,13 @@ export const getPostById = async (req, res) => {
       });
     }
 
+    const likeCount = await countPostLikes(post._id);
+    const commentCount = await countPostComments(post._id);
+
     return res.status(200).json({
       success: true,
       message: "Post retrieved successfully",
-      data: post,
+      data: { ...post.toObject(), likeCount, commentCount },
     });
   } catch (error) {
     return res.status(500).json({
@@ -306,10 +317,18 @@ export const getPostsNotByMe = async (req, res) => {
       userId: { $ne: user.userId },
       isDeleted: false,
     }).sort({ createdAt: -1 });
+    const enriched = await Promise.all(
+      posts.map(async (p) => ({
+        ...p.toObject(),
+        likeCount: await countPostLikes(p._id),
+        commentCount: await countPostComments(p._id),
+      })),
+    );
+
     return res.status(200).json({
       success: true,
       message: "Posts retrieved successfully",
-      data: posts,
+      data: enriched,
     });
   } catch (error) {
     return res.status(500).json({

@@ -48,7 +48,7 @@ global._io = io;
 // Đăng ký các handler socket (JOIN_ROOM, message, ...)
 registerChatSocket(io);
 
-server.listen(PORT, () => {
+server.listen(PORT,"0.0.0.0", () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
 });
