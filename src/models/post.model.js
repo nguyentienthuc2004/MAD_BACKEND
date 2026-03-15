@@ -37,6 +37,17 @@ const postSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    moderationStatus: {
+      type: String,
+      enum: ["clean", "flagged", "blocked"],
+      default: "clean",
+    },
+    moderationFlags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     isDeleted: {
       type: Boolean,
       default: false,
@@ -45,6 +56,12 @@ const postSchema = new mongoose.Schema(
   {
     timestamps: true,
   }
+);
+
+// Text index for full-text search on caption and hashtags
+postSchema.index(
+  { caption: "text", hashtags: "text" },
+  { weights: { caption: 5, hashtags: 10 } }
 );
 
 const Post = mongoose.model("Post", postSchema, "posts");

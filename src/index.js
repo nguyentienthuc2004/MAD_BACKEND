@@ -5,13 +5,14 @@ import routes from "./routes/index.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
-
+import dotenv from "dotenv"
+dotenv.config()
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+console.log("MONGO_URI:", process.env.MONGO_URI);
 await connectDB();
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
