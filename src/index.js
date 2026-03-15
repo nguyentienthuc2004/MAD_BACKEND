@@ -9,6 +9,7 @@ import { notFound, errorHandler } from "./middleware/error.middleware.js";
 import { Server } from "socket.io";
 import http from "http";
 import { registerChatSocket } from "./socket/chat.socket.js";
+import { registerNotificationSocket } from "./socket/notification.socket.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +48,7 @@ global._io = io;
 
 // Đăng ký các handler socket (JOIN_ROOM, message, ...)
 registerChatSocket(io);
+registerNotificationSocket(io);
 
 server.listen(PORT,"0.0.0.0", () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);

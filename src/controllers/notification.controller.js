@@ -14,8 +14,9 @@ export const getNotifications = async (req, res) => {
     }
 
     const notifications = await Notification.find(query)
-      .sort({ createdAt: -1 })
-      .populate("actorId", "username avatar")
+      .sort({ updatedAt: -1 })
+      .populate("actors", "username avatar")
+      .populate("lastActor", "username avatar")
       .populate("targetPostId", "caption images")
       .populate("targetCommentId", "content")
       .lean();
