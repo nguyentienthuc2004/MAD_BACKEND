@@ -43,14 +43,18 @@ export const likePost = async (req, res) => {
       });
 
       liked = true;
-    //thong bao cho chu post
-      await notificationService.createAndEmit({
-        userId: post.userId,
-        actorId: userId,
-        type: "like_post",
-        targetPostId: postId,
-        data: { postId },
-      });
+      //thong bao cho chu post
+      try {
+        await notificationService.upsertActorNotification({
+          userId: post.userId,
+          actorId: userId,
+          type: "like_post",
+          targetPostId: postId,
+          data: { postId },
+        });
+      } catch (e) {
+        console.error("Notification upsert error:", e);
+      }
     } else if (!existingLike.isDeleted) {
       await Like.updateOne(
         { _id: existingLike._id },
@@ -58,6 +62,17 @@ export const likePost = async (req, res) => {
       );
 
       liked = false;
+
+      try {
+        await notificationService.removeActorFromNotification({
+          userId: post.userId,
+          actorId: userId,
+          type: "like_post",
+          targetPostId: postId,
+        });
+      } catch (e) {
+        console.error("Notification remove actor error:", e);
+      }
     } else {
       await Like.updateOne(
         { _id: existingLike._id },
@@ -66,13 +81,17 @@ export const likePost = async (req, res) => {
 
       liked = true;
 
-      await notificationService.createAndEmit({
-        userId: post.userId,
-        actorId: userId,
-        type: "like_post",
-        targetPostId: postId,
-        data: { postId },
-      });
+      try {
+        await notificationService.upsertActorNotification({
+          userId: post.userId,
+          actorId: userId,
+          type: "like_post",
+          targetPostId: postId,
+          data: { postId },
+        });
+      } catch (e) {
+        console.error("Notification upsert error:", e);
+      }
     }
 
     const likeCount = await countPostLikes(postId);
@@ -136,15 +155,19 @@ export const likeComment = async (req, res) => {
       });
 
       liked = true;
-      //thong bao cho chu comment
-      await notificationService.createAndEmit({
-        userId: comment.userId,
-        actorId: userId,
-        type: "like_comment",
-        targetPostId: comment.postId,
-        targetCommentId: commentId,
-        data: { commentId, postId: comment.postId },
-      });
+      //thong bao cho chu cmt
+      try {
+        await notificationService.upsertActorNotification({
+          userId: comment.userId,
+          actorId: userId,
+          type: "like_comment",
+          targetPostId: comment.postId,
+          targetCommentId: commentId,
+          data: { commentId, postId: comment.postId },
+        });
+      } catch (e) {
+        console.error("Notification upsert error:", e);
+      }
     } else if (!existingLike.isDeleted) {
       await Like.updateOne(
         { _id: existingLike._id },
@@ -152,6 +175,17 @@ export const likeComment = async (req, res) => {
       );
 
       liked = false;
+      try {
+        await notificationService.removeActorFromNotification({
+          userId: comment.userId,
+          actorId: userId,
+          type: "like_comment",
+          targetPostId: comment.postId,
+          targetCommentId: commentId,
+        });
+      } catch (e) {
+        console.error("Notification remove actor error:", e);
+      }
     } else {
       await Like.updateOne(
         { _id: existingLike._id },
@@ -160,14 +194,18 @@ export const likeComment = async (req, res) => {
 
       liked = true;
 
-      await notificationService.createAndEmit({
-        userId: comment.userId,
-        actorId: userId,
-        type: "like_comment",
-        targetPostId: comment.postId,
-        targetCommentId: commentId,
-        data: { commentId, postId: comment.postId },
-      });
+      try {
+        await notificationService.upsertActorNotification({
+          userId: comment.userId,
+          actorId: userId,
+          type: "like_comment",
+          targetPostId: comment.postId,
+          targetCommentId: commentId,
+          data: { commentId, postId: comment.postId },
+        });
+      } catch (e) {
+        console.error("Notification upsert error:", e);
+      }
     }
 
     const likeCount = await countCommentLikes(commentId);
@@ -194,7 +232,7 @@ export const likeComment = async (req, res) => {
     });
   }
 };
-//check xem th user da like chua de toogle nut like fe
+//checklikeuser
 export const checkLikeStatus = async (req, res) => {
   try {
     const { targetType, targetId } = req.params;
