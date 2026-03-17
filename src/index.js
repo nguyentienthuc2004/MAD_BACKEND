@@ -11,12 +11,18 @@ import http from "http";
 import { registerChatSocket } from "./socket/chat.socket.js";
 import { registerNotificationSocket } from "./socket/notification.socket.js";
 
+// Socket io
+import { Server } from "socket.io";
+import http from "http";
+import { registerChatSocket } from "./socket/chat.socket.js";
+import { registerNotificationSocket } from "./socket/notification.socket.js";
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+console.log("MONGO_URI:", process.env.MONGO_URI);
 await connectDB();
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

@@ -36,6 +36,12 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    fullName: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: [100, "Full name cannot exceed 100 characters"],
+    },
     status: {
       type: String,
       enum: ["active", "inactive", "banned"],
@@ -66,6 +72,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    followerCount: {
+      type: Number,
+      default: 0,
+    },
+    followingCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -90,6 +104,12 @@ userSchema.methods.toJSON = function () {
   delete obj.__v;
   return obj;
 };
+
+// Text index for search by username, displayName, fullName
+userSchema.index(
+  { username: "text", displayName: "text", fullName: "text" },
+  { weights: { username: 10, displayName: 5, fullName: 3 } }
+);
 
 const User = mongoose.model("User", userSchema);
 
