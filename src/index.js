@@ -5,6 +5,11 @@ import routes from "./routes/index.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
+// Socket io
+import { Server } from "socket.io";
+import http from "http";
+import { registerChatSocket } from "./socket/chat.socket.js";
+import { registerNotificationSocket } from "./socket/notification.socket.js";
 
 // Socket io
 import { Server } from "socket.io";
@@ -51,7 +56,7 @@ global._io = io;
 registerChatSocket(io);
 registerNotificationSocket(io);
 
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT,"0.0.0.0", () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
 });
