@@ -7,6 +7,7 @@ import notificationRoutes from "./notification.route.js";
 import chatRoutes from "./chat.route.js";
 import searchRoutes from "./search.route.js";
 import followRoutes from "./follow.route.js";
+import musicRoutes from "./music.route.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 
 const routes = (app) => {
@@ -19,6 +20,7 @@ const routes = (app) => {
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/search", searchRoutes);
   app.use("/api/follow", followRoutes);
+  app.use("/api/musics", authenticate, musicRoutes);
 };
 
 export default routes;

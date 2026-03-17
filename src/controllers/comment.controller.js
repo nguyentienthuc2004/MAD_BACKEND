@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Comment from "../models/comment.model.js";
 import Post from "../models/post.model.js";
 import notificationService from "../services/notification.service.js";
+import countService from "../services/count.service.js";
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -12,18 +13,12 @@ export const createComment = async (req, res) => {
     const userId = req.user.userId;
 
     if (!isValidObjectId(postId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid post ID format",
-      });
+      return res.status(400).json({ success: false, message: "Invalid post ID format" });
     }
 
     const post = await Post.findOne({ _id: postId, isDeleted: false });
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
+      return res.status(404).json({ success: false, message: "Post not found" });
     }
 
     const comment = await Comment.create({
@@ -32,41 +27,41 @@ export const createComment = async (req, res) => {
       content: content.trim(),
       parentCommentId: null,
     });
-    //thong bao cho chu post
-    await notificationService.createAndEmit({
-      userId: post.userId,
-      actorId: userId,
-      type: "comment",
-      targetPostId: postId,
-      targetCommentId: comment._id,
-      data: { postId, commentId: comment._id },
-    });
 
-    const populatedComment = await Comment.findById(comment._id).populate(
-      "userId",
-      "username avatar"
-    );
-
-    res.status(201).json({
-      success: true,
-      data: {
-        comment: populatedComment,
-      },
-    });
-  } catch (error) {
-    if (error.name === "ValidationError") {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: Object.values(error.errors).map((e) => e.message),
-      });
+    const recipients = new Set();
+    if (post.userId && post.userId.toString() !== userId.toString()) {
+      recipients.add(post.userId.toString());
     }
 
+    const notifPayloads = Array.from(recipients).map((recipientId) =>
+      notificationService
+        .upsertActorNotification({
+          userId: recipientId,
+          actorId: userId,
+          type: "comment",
+          targetPostId: postId,
+          targetCommentId: null,
+          data: { postId, commentId: comment._id },
+        })
+        .then((r) => {
+          return r;
+        })
+        .catch((err) => {
+          console.error("notify error (createComment):", err);
+        })
+    );
+
+    await Promise.all(notifPayloads);
+
+    const populatedComment = await Comment.findById(comment._id).populate("userId", "username avatar");
+
+    res.status(201).json({ success: true, data: { comment: populatedComment } });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ success: false, message: "Validation error", errors: Object.values(error.errors).map((e) => e.message) });
+    }
     console.error("Create comment error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -77,34 +72,20 @@ export const replyToComment = async (req, res) => {
     const userId = req.user.userId;
 
     if (!isValidObjectId(postId) || !isValidObjectId(parentCommentId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid ID format",
-      });
+      return res.status(400).json({ success: false, message: "Invalid ID format" });
     }
 
     const post = await Post.findOne({ _id: postId, isDeleted: false });
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
+      return res.status(404).json({ success: false, message: "Post not found" });
     }
 
-    const parentComment = await Comment.findOne({
-      _id: parentCommentId,
-      postId,
-      isDeleted: false,
-    });
-
+    const parentComment = await Comment.findOne({ _id: parentCommentId, postId, isDeleted: false });
     if (!parentComment) {
-      return res.status(404).json({
-        success: false,
-        message: "Parent comment not found",
-      });
+      return res.status(404).json({ success: false, message: "Parent comment not found" });
     }
 
-    const rootId = parentComment.rootCommentId;
+    const rootId = parentComment.rootCommentId || parentComment._id;
 
     const reply = await Comment.create({
       postId,
@@ -112,67 +93,85 @@ export const replyToComment = async (req, res) => {
       content: content.trim(),
       rootCommentId: rootId,
       parentCommentId: parentComment._id,
-      mentionUserId: parentComment.userId,
+      mentionUserId: parentComment.mentionUserId || null,
     });
-    //thong bao cho nguoi duoc reply
-    await notificationService.createAndEmit({
-      userId: parentComment.userId,
-      actorId: userId,
-      type: "reply",
-      targetPostId: postId,
-      targetCommentId: reply._id,
-      data: { postId, commentId: reply._id, parentCommentId },
-    });
-    //thong bao cho chu bai viet
-    if (post.userId.toString() !== parentComment.userId.toString() &&
-        post.userId.toString() !== userId.toString()) {
-      await notificationService.createAndEmit({
-        userId: post.userId,
-        actorId: userId,
-        type: "comment",
-        targetPostId: postId,
-        targetCommentId: reply._id,
-        data: { postId, commentId: reply._id },
-      });
+
+    //thong bao reply cho chu root
+    const replyRecipients = new Set();
+
+    if (parentComment.userId && parentComment.userId.toString() !== userId.toString()) {
+      replyRecipients.add(parentComment.userId.toString());
     }
-    //thong bao cho nguoi duoc nhac den trong reply
-    if (parentComment.mentionUserId &&
-        parentComment.mentionUserId.toString() !== userId.toString() &&
-        parentComment.mentionUserId.toString() !== parentComment.userId.toString()) {
-      await notificationService.createAndEmit({
-        userId: parentComment.mentionUserId,
-        actorId: userId,
-        type: "mention",
-        targetPostId: postId,
-        targetCommentId: reply._id,
-        data: { postId, commentId: reply._id },
-      });
+
+    if (rootId && rootId.toString() !== parentComment._id.toString()) {
+      const rootComment = await Comment.findById(rootId).lean();
+      if (rootComment && rootComment.userId && rootComment.userId.toString() !== userId.toString()) {
+        replyRecipients.add(rootComment.userId.toString());
+      }
     }
+
+    if (
+      parentComment.mentionUserId &&
+      parentComment.mentionUserId.toString() !== userId.toString() &&
+      parentComment.mentionUserId.toString() !== parentComment.userId.toString()
+    ) {
+      replyRecipients.add(parentComment.mentionUserId.toString());
+    }
+
+    const notifPromises = [];
+
+    //thong bao reply cho chu root
+    for (const recipientId of Array.from(replyRecipients)) {
+      notifPromises.push(
+        notificationService
+          .upsertActorNotification({
+            userId: recipientId,
+            actorId: userId,
+            type: "reply",
+            targetPostId: postId,
+            targetCommentId: rootId,
+            data: { postId, commentId: reply._id, parentCommentId: parentCommentId },
+          })
+          .catch((err) => {
+            console.error("notify error (replyToComment - replyRecipients):", err);
+          }),
+      );
+    }
+
+    //thong bao cho chu post khong trong reply
+    if (post.userId && post.userId.toString() !== userId.toString()) {
+      const postOwnerId = post.userId.toString();
+      if (!replyRecipients.has(postOwnerId)) {
+        notifPromises.push(
+          notificationService
+            .upsertActorNotification({
+              userId: postOwnerId,
+              actorId: userId,
+              type: "comment",
+              targetPostId: postId,
+              targetCommentId: null,
+              data: { postId, commentId: reply._id, parentCommentId: parentCommentId },
+            })
+            .catch((err) => {
+              console.error("notify error (replyToComment - postOwner):", err);
+            }),
+        );
+      }
+    }
+
+    await Promise.all(notifPromises);
 
     const populatedReply = await Comment.findById(reply._id)
       .populate("userId", "username avatar")
       .populate("mentionUserId", "username");
 
-    res.status(201).json({
-      success: true,
-      data: {
-        comment: populatedReply,
-      },
-    });
+    res.status(201).json({ success: true, data: { comment: populatedReply } });
   } catch (error) {
     if (error.name === "ValidationError") {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: Object.values(error.errors).map((e) => e.message),
-      });
+      return res.status(400).json({ success: false, message: "Validation error", errors: Object.values(error.errors).map((e) => e.message) });
     }
-
     console.error("Reply to comment error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -180,12 +179,12 @@ export const getComments = async (req, res) => {
   try {
     const { postId } = req.params;
 
-    // if (!isValidObjectId(postId)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Invalid post ID format",
-    //   });
-    // }
+    if (!isValidObjectId(postId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid post ID format",
+      });
+    }
 
     const post = await Post.findOne({ _id: postId, isDeleted: false });
     if (!post) {
@@ -209,11 +208,21 @@ export const getComments = async (req, res) => {
 
     const total = await Comment.countDocuments(rootQuery);
 
+    //them count vao tung comment response
+    const replyCounts = await Promise.all(
+      comments.map((c) => countService.countCommentReplies(c._id))
+    );
+
+    const commentsWithCounts = comments.map((c, idx) => ({
+      ...c,
+      replyCount: replyCounts[idx] || 0,
+    }));
+
     res.status(200).json({
       success: true,
       data: {
         total,
-        comments,
+        comments: commentsWithCounts,
       },
     });
   } catch (error) {

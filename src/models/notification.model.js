@@ -10,10 +10,20 @@ const NotificationSchema = new Schema(
       required: true,
       index: true,
     },
-    actorId: {
+    actors: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    lastActor: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
+    },
+    count: {
+      type: Number,
+      default: 0,
     },
     type: {
       type: String,
@@ -41,10 +51,12 @@ const NotificationSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-NotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
+// Indexes
+NotificationSchema.index({ userId: 1, type: 1, targetPostId: 1, targetCommentId: 1, isRead: 1 });
+NotificationSchema.index({ userId: 1, isRead: 1, updatedAt: -1 });
 
 const Notification = mongoose.model("Notification", NotificationSchema, "notifications");
 

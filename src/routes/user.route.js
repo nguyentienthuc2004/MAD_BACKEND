@@ -6,6 +6,7 @@ import {
   updateProfile,
   uploadAvatar,
 } from "../controllers/user.controller.js";
+import { getUserDetail } from "../controllers/post.controller.js";
 import {
   getFollowers,
   getFollowing,
@@ -144,6 +145,25 @@ router.post("/avatar", authenticate, upload.single("avatar"), uploadAvatar);
  *         description: User not found
  */
 router.get("/:id", validateObjectId("id"), getUserProfile);
+
+/**
+ * @swagger
+ * /api/users/{id}/detail:
+ *   get:
+ *     summary: Get user detail (posts)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User detail
+ */
+router.get("/:id/detail", getUserDetail);
 
 /**
  * @swagger
