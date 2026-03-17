@@ -78,17 +78,41 @@ export const postRoomChat = async (req, res) => {
 // [GET] api/chat/rooms
 export const getRoomChat = async (req, res) => {
     try {
-        const userId = req.user.userId
-        // const userId = req.body.userId
+        const userId = req.user.userId;
+
         const rooms = await RoomChat.find({
             "users.user_id": userId,
-            isDeleted: false
-        }).sort({ updatedAt: -1 })
+            isDeleted: false,
+        }).sort({ updatedAt: -1 });
+
+        // Tính số tin nhắn chưa đọc cho từng phòng dựa trên collection Message
+        const roomsWithUnread = await Promise.all(
+            rooms.map(async (room) => {
+                const unreadCount = await Message.countDocuments({
+                    room_id: room._id,
+                    sender_id: { $ne: userId },
+                    isDeleted: false,
+                    read_by: {
+                        $not: {
+                            $elemMatch: {
+                                user_id: userId,
+                            },
+                        },
+                    },
+                });
+
+                const roomObj = room.toObject();
+                return {
+                    ...roomObj,
+                    unreadCount,
+                };
+            }),
+        );
 
         return res.status(200).json({
             success: true,
             message: "Lấy danh sách phòng chat thành công",
-            data: { rooms },
+            data: { rooms: roomsWithUnread },
         });
     } catch (error) {
         return res.status(500).json({
@@ -172,6 +196,7 @@ export const sendMessage = async (req, res) => {
             sender_id: userId,
             room_id: roomId,
             content: content,
+            status: "sent"
         })
         await RoomChat.updateOne({
             _id: roomId,
@@ -187,6 +212,9 @@ export const sendMessage = async (req, res) => {
         const io = req.app.get("io");
         if (io) {
             io.to(String(roomId)).emit("SERVER_SEND_MESSAGE", message);
+            await message.updateOne({
+                status: "delivered"
+            })
         }
 
         return res.status(201).json({
@@ -406,4 +434,72 @@ export const editRoom = async (req, res) => {
 // [GET] api/chat/room/:roomId/member
 export const getMember = async (req, res) => {
 
+}
+
+// [PATCH] api/chat/:roomId/seen
+export const seenMessage = async (req, res) => {
+    const userId = req.user.userId;
+    const roomId = req.params.roomId;
+
+    try {
+        if (!roomId) {
+            return res.status(400).json({
+                success: false,
+                message: "Thiếu roomId"
+            });
+        }
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false,
+            "users.user_id": userId,
+        });
+
+        if (!room) {
+            return res.status(403).json({
+                success: false,
+                message: "Bạn không thuộc phòng chat này",
+            });
+        }
+        const result = await Message.updateMany({
+            room_id: roomId,
+            sender_id: { $ne: userId },
+            isDeleted: false,
+            read_by: {
+                $not: {
+                    $elemMatch: {
+                        user_id: userId
+                    }
+                }
+            }
+
+        }, {
+            $push: {
+                read_by: {
+                    user_id: userId,
+                    read_at: new Date()
+                }
+            },
+
+        })
+        const io = req.app.get("io");
+        if (io) {
+            const now = new Date();
+            io.to(String(roomId)).emit("SERVER_MESSAGES_SEEN", {
+                roomId: String(roomId),
+                userId: String(userId),
+                seenAt: now,
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message: `Đã đọc ${result.modifiedCount} tin nhắn`,
+
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
 }

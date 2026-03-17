@@ -9,9 +9,8 @@ const MessageSchema = new mongoose.Schema({
     },
     content: String,
     images: Array,
-    status: String,
     read_by: [{
-        user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        user_id: String,
         read_at: { type: Date, default: Date.now }
     }],
     isDeleted: {
@@ -25,3 +24,9 @@ const MessageSchema = new mongoose.Schema({
 
 const Message = mongoose.model('Message', MessageSchema, "messages")
 export default Message;
+MessageSchema.index({
+    room_id: 1,
+    sender_id: 1,
+    "read_by.user_id": 1,
+    isDeleted: 1
+});
