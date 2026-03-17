@@ -197,35 +197,54 @@ export const sendMessage = async (req, res) => {
     }
 
 }
-// [PATCH] api/chat/rooms/:roomId/users/nicknames
+// [PATCH] api/chat/rooms/:roomId/users/:userId/nickname
 export const editNickname = async (req, res) => {
     try {
-        const roomId = req.params.roomId
-        const { nicknames } = req.body
+        const roomId = req.params.roomId;
+        const userId = req.params.userId;
+        const { nickname } = req.body;
 
-        if (!Array.isArray(nicknames) || nicknames.length === 0) {
-            return res.status(400).json({ message: "Dữ liệu nicknames không hợp lệ" });
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Thiếu userId của thành viên cần đổi biệt danh",
+            });
         }
-        const bulkOps = nicknames.map((item) => ({
-            updateOne: {
-                filter: { _id: roomId, "users.user_id": item.userId },
-                update: { $set: { "users.$.nickname": item.nickname } }
-            }
-        }))
-        const result = await RoomChat.bulkWrite(bulkOps)
-        const roomChat = await RoomChat.findOne({
-            _id: roomId,
-            isDeleted: false
-        })
+        const safeNickname =
+            typeof nickname === "string" ? nickname.trim() : "";
+
+        const updatedRoom = await RoomChat.findOneAndUpdate(
+            {
+                _id: roomId,
+                isDeleted: false,
+                "users.user_id": userId,
+            },
+            {
+                $set: { "users.$.nickname": safeNickname },
+            },
+            { new: true },
+        );
+
+        if (!updatedRoom) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy phòng chat hoặc thành viên trong phòng",
+            });
+        }
+
         return res.status(200).json({
             success: true,
-            message: "Cập nhật thành công",
-            data: roomChat
-        })
+            message: "Cập nhật biệt danh thành công",
+            data: { room: updatedRoom },
+        });
     } catch (error) {
-        return res.status(500).json({ message: "Lỗi Server", error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi Server",
+            error: error.message,
+        });
     }
-}
+};
 // [POST] api/chat/groups
 export const createGroup = async (req, res) => {
     const { title, avatar, usersId } = req.body

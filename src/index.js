@@ -11,12 +11,6 @@ import http from "http";
 import { registerChatSocket } from "./socket/chat.socket.js";
 import { registerNotificationSocket } from "./socket/notification.socket.js";
 
-// Socket io
-import { Server } from "socket.io";
-import http from "http";
-import { registerChatSocket } from "./socket/chat.socket.js";
-import { registerNotificationSocket } from "./socket/notification.socket.js";
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -56,7 +50,7 @@ global._io = io;
 registerChatSocket(io);
 registerNotificationSocket(io);
 
-server.listen(PORT,"0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
 });
