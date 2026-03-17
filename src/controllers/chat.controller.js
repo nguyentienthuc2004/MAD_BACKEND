@@ -208,7 +208,7 @@ export const sendMessage = async (req, res) => {
 export const editNickname = async (req, res) => {
     try {
         const roomId = req.params.roomId;
-        const userId = req.params.userId;
+        const userId = req.params.userId;//Người bị thay đổi 
         const { nickname } = req.body;
 
         if (!userId) {
@@ -217,8 +217,17 @@ export const editNickname = async (req, res) => {
                 message: "Thiếu userId của thành viên cần đổi biệt danh",
             });
         }
-        const safeNickname =
+        let safeNickname =
             typeof nickname === "string" ? nickname.trim() : "";
+
+        if (!safeNickname) {
+            const targetUser = await User.findOne({
+                _id: userId,
+                isDeleted: false,
+            }).select("username");
+
+            safeNickname = targetUser?.username || "";
+        }
 
         const updatedRoom = await RoomChat.findOneAndUpdate(
             {
@@ -237,6 +246,37 @@ export const editNickname = async (req, res) => {
                 success: false,
                 message: "Không tìm thấy phòng chat hoặc thành viên trong phòng",
             });
+        }
+
+        // SERVER_NICKNAME_CHANGED
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                const changerId = req.user.userId;
+
+                // Tìm thông tin người đổi và người bị đổi trong room sau khi update
+                const changerMember = changerId
+                    ? updatedRoom.users.find(
+                        (u) => String(u.user_id) === String(changerId),
+                    )
+                    : null;
+                const targetMember = updatedRoom.users.find(
+                    (u) => String(u.user_id) === String(userId),
+                );
+
+                const payload = {
+                    roomId: String(roomId),
+                    changerId: changerId ? String(changerId) : undefined,
+                    changerName: changerMember?.nickname || "Một người dùng",
+                    targetId: String(userId),
+                    targetName: targetMember?.nickname || "một thành viên",
+                    newNickname: safeNickname,
+                };
+
+                io.to(String(roomId)).emit("SERVER_NICKNAME_CHANGED", payload);
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_NICKNAME_CHANGED error:", socketError);
         }
 
         return res.status(200).json({
