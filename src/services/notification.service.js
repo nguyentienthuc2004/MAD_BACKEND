@@ -27,7 +27,8 @@ export async function upsertActorNotification({
 
   const update = {
     $addToSet: { actors: new mongoose.Types.ObjectId(actorId) },
-    $set: { lastActor: new mongoose.Types.ObjectId(actorId), data },
+    // mark unread when new actor/activity arrives
+    $set: { lastActor: new mongoose.Types.ObjectId(actorId), data, isRead: false },
     $currentDate: { updatedAt: true },
   };
 
@@ -57,8 +58,8 @@ export async function upsertActorNotification({
   }
 
   const populated = await Notification.findById(doc._id)
-    .populate("actors", "username avatar")
-    .populate("lastActor", "username avatar")
+    .populate("actors", "username avatarUrl")
+    .populate("lastActor", "username avatarUrl")
     .lean();
 
   try {
@@ -128,8 +129,8 @@ export async function removeActorFromNotification({
   );
 
   const populated = await Notification.findById(updated._id)
-    .populate("actors", "username avatar")
-    .populate("lastActor", "username avatar")
+    .populate("actors", "username avatarUrl")
+    .populate("lastActor", "username avatarUrl")
     .lean();
 
   try {

@@ -53,7 +53,7 @@ export const createComment = async (req, res) => {
 
     await Promise.all(notifPayloads);
 
-    const populatedComment = await Comment.findById(comment._id).populate("userId", "username avatar");
+    const populatedComment = await Comment.findById(comment._id).populate("userId", "username avatarUrl");
 
     res.status(201).json({ success: true, data: { comment: populatedComment } });
   } catch (error) {
@@ -162,7 +162,7 @@ export const replyToComment = async (req, res) => {
     await Promise.all(notifPromises);
 
     const populatedReply = await Comment.findById(reply._id)
-      .populate("userId", "username avatar")
+      .populate("userId", "username avatarUrl")
       .populate("mentionUserId", "username");
 
     res.status(201).json({ success: true, data: { comment: populatedReply } });
@@ -202,7 +202,7 @@ export const getComments = async (req, res) => {
 
     const comments = await Comment.find(rootQuery)
       .sort({ createdAt: -1 })
-      .populate("userId", "username avatar")
+      .populate("userId", "username avatarUrl")
       .populate("mentionUserId", "username")
       .lean();
 
@@ -272,7 +272,7 @@ export const getCommentReplies = async (req, res) => {
       isDeleted: false,
     })
       .sort({ createdAt: 1 })
-      .populate("userId", "username avatar")
+      .populate("userId", "username avatarUrl")
       .populate("mentionUserId", "username")
       .lean();
 
@@ -337,7 +337,7 @@ export const editComment = async (req, res) => {
     await comment.save();
 
     const updatedComment = await Comment.findById(commentId)
-      .populate("userId", "username avatar")
+      .populate("userId", "username avatarUrl")
       .populate("mentionUserId", "username");
 
     res.status(200).json({
@@ -424,7 +424,7 @@ export const getCommentById = async (req, res) => {
       postId,
       isDeleted: false,
     })
-      .populate("userId", "username avatar")
+      .populate("userId", "username avatarUrl")
       .populate("mentionUserId", "username");
 
     if (!comment) {
