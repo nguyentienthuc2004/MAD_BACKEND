@@ -11,12 +11,6 @@ import http from "http";
 import { registerChatSocket } from "./socket/chat.socket.js";
 import { registerNotificationSocket } from "./socket/notification.socket.js";
 
-// Socket io
-import { Server } from "socket.io";
-import http from "http";
-import { registerChatSocket } from "./socket/chat.socket.js";
-import { registerNotificationSocket } from "./socket/notification.socket.js";
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
