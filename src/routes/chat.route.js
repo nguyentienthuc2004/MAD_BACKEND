@@ -1,5 +1,5 @@
 import express from "express";
-import { getRoomChat, postRoomChat, getMessage, sendMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage } from "../controllers/chat.controller.js";
+import { getRoomChat, postRoomChat, getMessage, sendMessage, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage } from "../controllers/chat.controller.js";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
 router.get("/rooms", getRoomChat);
@@ -12,4 +12,5 @@ router.patch("/rooms/:roomId", editRoom);
 router.get("/groups/:roomId/member", getMember);
 router.patch("/:roomId/seen", seenMessage);
 router.post("/rooms/:roomId/messages/image", upload.array("images", 10), sendImage);
+router.delete("/rooms/:roomId/messages/:messageId", deleteMessage);
 export default router;
