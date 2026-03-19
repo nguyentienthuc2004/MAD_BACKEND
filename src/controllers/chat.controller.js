@@ -139,7 +139,6 @@ export const getMessage = async (req, res) => {
         }
         const filter = {
             room_id: roomId,
-            isDeleted: false,
         };
         if (before) {
             filter.createdAt = { $lt: new Date(before) };
@@ -523,7 +522,7 @@ export const seenMessage = async (req, res) => {
         });
     }
 }
-// [POST] api/chat/rooms/:roomId/messages/image
+// [POST] api/chat/rooms/:roomId/messages
 export const sendImage = async (req, res) => {
     const userId = req.user.userId;
     const roomId = req.params.roomId;
@@ -586,6 +585,72 @@ export const sendImage = async (req, res) => {
             message: "Gửi tin nhắn thành công",
             data: { message },
         });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+}
+// [DELETE] api/chat/rooms/:roomId/messages/:messageId
+export const deleteMessage = async (req, res) => {
+    const userId = req.user.userId;
+    const roomId = req.params.roomId;
+    try {
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            "users.user_id": userId,
+            isDeleted: false
+        });
+        if (!room) {
+            return res.status(400).json({
+                success: false,
+                message: "Phòng chat không tồn tại",
+            });
+        }
+        const messageId = req.params.messageId
+        if (!messageId) {
+            return res.status(400).json({
+                success: false,
+                message: "Tin nhắn không tồn tại",
+            });
+        }
+        const result = await Message.updateOne({
+            _id: messageId,
+            sender_id: userId,
+            isDeleted: false,
+            room_id: roomId
+        }, {
+            isDeleted: true,
+            deletedAt: new Date(),
+        });
+        await RoomChat.updateOne(
+            {
+                _id: roomId,
+                isDeleted: false,
+            },
+            {
+                lastMessage: {
+                    content: "Một tin nhắn đã bị xoá",
+                    sender: userId,
+                    createdAt: new Date(),
+                },
+            },
+        );
+        const io = req.app.get("io");
+        if (io) {
+            io.to(String(roomId)).emit("SERVER_MESSAGE_DELETED", {
+                roomId: String(roomId),
+                messageId: String(messageId),
+                deletedBy: String(userId),
+            });
+        }
+        return res.status(204).json({
+            success: true,
+            message: "Xoá tin nhắn thành công",
+        });
+
     } catch (error) {
         return res.status(500).json({
             success: false,
