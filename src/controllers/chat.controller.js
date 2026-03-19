@@ -163,9 +163,9 @@ export const getMessage = async (req, res) => {
 // [POST] api/chat/rooms/:roomId/messages
 export const sendMessage = async (req, res) => {
     try {
-        const { content } = req.body
-        const roomId = req.params.roomId
-        const userId = req.user.userId
+        const { content, replyMessageId } = req.body;
+        const roomId = req.params.roomId;
+        const userId = req.user.userId;
 
         if (!content || typeof content !== "string" || !content.trim()) {
             return res.status(400).json({
@@ -173,10 +173,11 @@ export const sendMessage = async (req, res) => {
                 message: "Nội dung tin nhắn không hợp lệ",
             });
         }
+
         const room = await RoomChat.findOne({
             _id: roomId,
             isDeleted: false
-        })
+        });
         if (!room) {
             return res.status(400).json({
                 success: false,
@@ -192,12 +193,30 @@ export const sendMessage = async (req, res) => {
                 message: "Bạn không thuộc phòng chat này",
             });
         }
+
+        // Nếu có replyMessageId, đảm bảo tin nhắn gốc tồn tại trong cùng room
+        let replyMessage = null;
+        if (replyMessageId) {
+            replyMessage = await Message.findOne({
+                _id: replyMessageId,
+                room_id: roomId,
+                isDeleted: false,
+            });
+
+            if (!replyMessage) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Tin nhắn được trả lời không hợp lệ",
+                });
+            }
+        }
+
         const message = await Message.create({
             sender_id: userId,
             room_id: roomId,
             content: content,
-            status: "sent"
-        })
+            replyToMessage: replyMessage ? replyMessage._id : null,
+        });
         await RoomChat.updateOne({
             _id: roomId,
             isDeleted: false
