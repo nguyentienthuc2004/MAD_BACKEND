@@ -13,7 +13,7 @@ import { authenticate } from "../middleware/auth.middleware.js";
 const routes = (app) => {
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
-  app.use("/api/chat", chatRoutes);
+  app.use("/api/chat", authenticate, chatRoutes);
   app.use("/api/posts", authenticate, postRoutes);
   app.use("/api", likeRoutes);
   app.use("/api", commentRoutes);

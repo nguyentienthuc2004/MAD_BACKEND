@@ -9,7 +9,6 @@ const MessageSchema = new mongoose.Schema({
     },
     content: String,
     images: Array,
-
     replyToMessage: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Message",

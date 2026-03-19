@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import RoomChat from "../models/room-chat.model.js";
 import Message from "../models/message.model.js";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 // [POST] api/chat/rooms
 export const postRoomChat = async (req, res) => {
     try {
@@ -513,6 +514,77 @@ export const seenMessage = async (req, res) => {
             success: true,
             message: `Đã đọc ${result.modifiedCount} tin nhắn`,
 
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+}
+// [POST] api/chat/rooms/:roomId/messages/image
+export const sendImage = async (req, res) => {
+    const userId = req.user.userId;
+    const roomId = req.params.roomId;
+    try {
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            "users.user_id": userId,
+            isDeleted: false
+        });
+        if (!room) {
+            return res.status(400).json({
+                success: false,
+                message: "Phòng chat không tồn tại",
+            });
+        }
+
+        const files = req.files || [];
+
+        if (!files.length) {
+            return res.status(400).json({
+                success: false,
+                message: "Không có ảnh nào được gửi",
+            });
+        }
+
+        const uploadedImages = await Promise.all(
+            files.map(async (file) => {
+                const uploaded = await uploadBufferToCloudinary(file.buffer, "images");
+                return uploaded.secure_url;
+            })
+        );
+        const message = await Message.create({
+            sender_id: userId,
+            room_id: roomId,
+            images: uploadedImages,
+        });
+
+        await RoomChat.updateOne(
+            {
+                _id: roomId,
+                isDeleted: false,
+            },
+            {
+                lastMessage: {
+                    content: "[Hình ảnh]",
+                    sender: userId,
+                    createdAt: message.createdAt,
+                },
+            },
+        );
+
+        const io = req.app.get("io");
+        if (io) {
+            io.to(String(roomId)).emit("SERVER_SEND_MESSAGE", message);
+            await message.updateOne({ status: "delivered" });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: "Gửi tin nhắn thành công",
+            data: { message },
         });
     } catch (error) {
         return res.status(500).json({
