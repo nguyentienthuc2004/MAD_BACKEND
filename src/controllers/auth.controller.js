@@ -1,4 +1,8 @@
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import User from "../models/user.model.js";
+import Otp from "../models/otp.model.js";
+import { sendOtp } from "../services/mail.service.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -298,5 +302,145 @@ export const getMe = async (req, res) => {
       success: false,
       message: "Server error",
     });
+  }
+};
+const genOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const rawEmail = req.body?.email ?? "";
+    const email = String(rawEmail).trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email is required"
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(200).json({ 
+        success: true, 
+        message: "If the email exists, an OTP has been sent."
+      });
+    }
+
+    const existing = await Otp.findOne({ email });
+    const now = Date.now();
+    if (existing && existing.createdAt && now - new Date(existing.createdAt).getTime() < 60 * 1000) {
+      return res.status(200).json({ 
+        success: true, 
+        message: "If the email exists, an OTP has been sent."
+      });
+    }
+
+    const otp = genOtp();
+    const otpHash = await bcrypt.hash(otp, 12);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await Otp.findOneAndUpdate(
+      { email },
+      { otpHash, expiresAt, attempts: 0, isUsed: false },
+      { upsert: true, new: true },
+    );
+
+    try {
+      await sendOtp(email, otp);
+    } catch (e) {
+      console.error("Failed to send OTP email:", e);
+    }
+
+    return res.status(200).json({ success: true, message: "If the email exists, an OTP has been sent.", data: null });
+  } catch (error) {
+    console.error("forgotPassword error:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: null });
+  }
+};
+
+export const verifyOtp = async (req, res) => {
+  try {
+    const rawEmail = req.body?.email ?? "";
+    const email = String(rawEmail).trim().toLowerCase();
+    const otp = String(req.body?.otp ?? "");
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const doc = await Otp.findOne({ email });
+    if (!doc || doc.isUsed) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP"});
+    }
+
+    if (doc.expiresAt < new Date()) {
+      await Otp.updateOne({ email }, { isUsed: true });
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP"});
+    }
+
+    if (doc.attempts >= 5) {
+      await Otp.updateOne({ email }, { isUsed: true });
+      return res.status(400).json({ success: false, message: "Too many attempts, OTP is blocked" });
+    }
+
+    const match = await bcrypt.compare(otp, doc.otpHash);
+    if (!match) {
+      await Otp.updateOne({ email }, { $inc: { attempts: 1 } });
+      const updated = await Otp.findOne({ email });
+      if (updated.attempts >= 5) {
+        await Otp.updateOne({ email }, { isUsed: true });
+        return res.status(400).json({ success: false, message: "Too many attempts, OTP is blocked" });
+      }
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    await Otp.updateOne({ email }, { isUsed: true });
+
+    const token = jwt.sign({ email, purpose: "reset_password" }, process.env.JWT_SECRET, { expiresIn: "10m" });
+    return res.json({ success: true, message: "OTP verified", data: { resetToken: token } });
+  } catch (error) {
+    console.error("verifyOtp error:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: null });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const resetToken = req.body?.resetToken ?? "";
+    const newPassword = String(req.body?.newPassword ?? "");
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ success: false, message: "resetToken and newPassword are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(resetToken, process.env.JWT_SECRET);
+    } catch (e) {
+      return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
+    }
+
+    if (payload.purpose !== "reset_password" || !payload.email) {
+      return res.status(400).json({ success: false, message: "Invalid reset token" });
+    }
+
+    const email = String(payload.email).trim().toLowerCase();
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ success: false, message: "User not found" });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await User.updateOne({ _id: user._id }, { password: hash });
+    await Otp.deleteMany({ email });
+
+    return res.json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    console.error("resetPassword error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
