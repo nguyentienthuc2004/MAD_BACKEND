@@ -24,6 +24,10 @@ const postSchema = new mongoose.Schema(
         trim: true,
       },
     ],
+    isSensitive: {
+      type: Boolean,
+      default: false,
+    },
     musicId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Music",

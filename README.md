@@ -20,6 +20,12 @@ PORT=3000
 
 # MongoDB connection string
 MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<db_name>?retryWrites=true&w=majority
+
+# AI moderation service URL
+MODERATION_API_URL=http://localhost:8001/moderate-images
+
+# Optional timeout in milliseconds for AI moderation request
+MODERATION_TIMEOUT_MS=15000
 ```
 ### 4) Chạy project
 
