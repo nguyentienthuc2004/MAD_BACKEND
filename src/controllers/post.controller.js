@@ -2,6 +2,8 @@ import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { countPostLikes, countPostComments } from "../services/count.service.js";
+import { moderateImagesWithCheckpoint } from "../services/imageModeration.service.js";
+import { moderateImagesWithAiService } from "../services/imageModerationApi.service.js";
 
 const normalizeHashtags = (hashtags) => {
   const sanitize = (value) =>
@@ -114,6 +116,10 @@ export const createPost = async (req, res) => {
     const parsedHashtags = normalizeHashtags(hashtags);
     const files = req.files || [];
 
+    const imageModerationResult = await moderateImagesWithAiService({
+      files,
+    });
+
     const uploadedImages = await Promise.all(
       files.map(async (file) => {
         const uploaded = await uploadBufferToCloudinary(file.buffer, "posts");
@@ -127,6 +133,9 @@ export const createPost = async (req, res) => {
       hashtags: parsedHashtags,
       images: uploadedImages,
       musicId: normalizeMusicId(musicId),
+      isSensitive: imageModerationResult.isSensitive,
+      moderationStatus: imageModerationResult.isSensitive ? "flagged" : "clean",
+      moderationFlags: imageModerationResult.flags,
     });
 
     return res.status(201).json({
@@ -186,6 +195,11 @@ export const editPost = async (req, res) => {
     }
 
     const files = req.files || [];
+    const imageModerationResult = await moderateImagesWithCheckpoint({
+      files,
+      imageUrls: keptImages,
+    });
+
     const uploadedImages = await Promise.all(
       files.map(async (file) => {
         const uploaded = await uploadBufferToCloudinary(file.buffer, "posts");
@@ -215,6 +229,9 @@ export const editPost = async (req, res) => {
     }
 
     post.images = mergedImages;
+    post.isSensitive = imageModerationResult.isSensitive;
+    post.moderationStatus = imageModerationResult.isSensitive ? "flagged" : "clean";
+    post.moderationFlags = imageModerationResult.flags;
 
     await post.save();
 
