@@ -2,6 +2,9 @@ import express from "express";
 import {
   register,
   login,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
   refreshToken,
   logout,
   logoutAll,
@@ -133,6 +136,10 @@ const router = express.Router();
  *         description: Account banned or inactive
  */
 router.post("/login", login);
+
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-otp", verifyOtp);
+router.post("/reset-password", resetPassword);
 
 /**
  * @swagger
