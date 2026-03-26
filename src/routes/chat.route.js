@@ -1,6 +1,7 @@
 import express from "express";
 import { getRoomChat, postRoomChat, getMessage, sendMessage, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage } from "../controllers/chat.controller.js";
 import upload from "../middleware/upload.middleware.js";
+import { Route } from "express";
 const router = express.Router();
 
 /**

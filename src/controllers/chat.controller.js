@@ -129,6 +129,8 @@ export const getMessage = async (req, res) => {
         const userId = req.user.userId
         const roomId = req.params.roomId
         const before = req.query.before;
+        const keyword = req.query.keyword
+
         const room = await RoomChat.findOne({
             _id: roomId,
             isDeleted: false,
@@ -140,12 +142,18 @@ export const getMessage = async (req, res) => {
         const filter = {
             room_id: roomId,
         };
+        if (keyword) {
+            const regex = new RegExp(keyword, 'i');
+            filter.content = regex
+        }
+
         if (before) {
             filter.createdAt = { $lt: new Date(before) };
         }
         const messages = await Message.find(filter)
             .sort({ createdAt: -1 })
             .limit(20);
+
         return res.status(200).json({
             success: true,
             message: "Lấy danh sách tin nhắn thành công",
