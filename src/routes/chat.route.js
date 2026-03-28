@@ -1,5 +1,5 @@
 import express from "express";
-import { getRoomChat, postRoomChat, getMessage, sendMessage, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage } from "../controllers/chat.controller.js";
+import { getRoomChat, removeMember, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage } from "../controllers/chat.controller.js";
 import upload from "../middleware/upload.middleware.js";
 import { Route } from "express";
 const router = express.Router();
@@ -340,4 +340,84 @@ router.post("/rooms/:roomId/messages/image", upload.array("images", 10), sendIma
  *         description: Unauthorized
  */
 router.delete("/rooms/:roomId/messages/:messageId", deleteMessage);
+/**
+ * @swagger
+ * /api/chat/groups/{roomId}/member/{userId}/role:
+ *   patch:
+ *     summary: Đổi role thành viên nhóm chat (chỉ owner)
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID thành viên cần đổi role
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               newRole:
+ *                 type: string
+ *                 enum: [owner, co_owner, member]
+ *                 description: Role mới
+ *     responses:
+ *       200:
+ *         description: Cập nhật role thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Không đủ quyền
+ *       404:
+ *         description: Không tìm thấy phòng hoặc thành viên
+ */
+router.patch("/groups/:roomId/member/:userId/role", changeMemberRole);
+
+/**
+ * @swagger
+ * /api/chat/groups/{roomId}/member/{userId}:
+ *   delete:
+ *     summary: Xoá thành viên khỏi nhóm chat (chỉ owner)
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID thành viên cần xoá
+ *     responses:
+ *       200:
+ *         description: Đã xoá thành viên khỏi nhóm
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Không đủ quyền
+ *       404:
+ *         description: Không tìm thấy phòng hoặc thành viên
+ */
+router.delete("/groups/:roomId/member/:userId", removeMember);
 export default router;
