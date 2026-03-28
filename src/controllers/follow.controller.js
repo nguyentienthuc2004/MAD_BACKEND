@@ -51,9 +51,25 @@ export const followUser = async (req, res) => {
       });
     }
 
+    // Lấy lại thông tin followerCount/followingCount mới nhất của cả 2 user
+    const [followerUser, followingUser] = await Promise.all([
+      (await import("../models/user.model.js")).default.findById(followerId),
+      (await import("../models/user.model.js")).default.findById(userId),
+    ]);
+
     res.status(201).json({
       success: true,
       message: "User followed successfully",
+      follower: {
+        _id: followerUser._id,
+        followingCount: followerUser.followingCount,
+        followerCount: followerUser.followerCount,
+      },
+      following: {
+        _id: followingUser._id,
+        followingCount: followingUser.followingCount,
+        followerCount: followingUser.followerCount,
+      },
     });
   } catch (error) {
     console.error("Error following user:", error);
@@ -86,9 +102,25 @@ export const unfollowUser = async (req, res) => {
       });
     }
 
+    // Lấy lại thông tin followerCount/followingCount mới nhất của cả 2 user
+    const [followerUser, followingUser] = await Promise.all([
+      (await import("../models/user.model.js")).default.findById(followerId),
+      (await import("../models/user.model.js")).default.findById(userId),
+    ]);
+
     res.status(200).json({
       success: true,
       message: "User unfollowed successfully",
+      follower: {
+        _id: followerUser._id,
+        followingCount: followerUser.followingCount,
+        followerCount: followerUser.followerCount,
+      },
+      following: {
+        _id: followingUser._id,
+        followingCount: followingUser.followingCount,
+        followerCount: followingUser.followerCount,
+      },
     });
   } catch (error) {
     console.error("Error unfollowing user:", error);

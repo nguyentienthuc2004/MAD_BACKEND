@@ -13,8 +13,8 @@ export const followUser = async (followerId, followingId) => {
     return { success: false, status: 400, message: "You cannot follow yourself" };
   }
 
-  const followingUser = await User.findById(followingId);
-  if (!followingUser || followingUser.isDeleted) {
+  const followingUserDoc = await User.findById(followingId);
+  if (!followingUserDoc || followingUserDoc.isDeleted) {
     return { success: false, status: 404, message: "User not found" };
   }
 
@@ -29,13 +29,37 @@ export const followUser = async (followerId, followingId) => {
 
   await Follow.create({ followerId, followingId });
 
-  // Update follow counts atomically
-  await Promise.all([
-    User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } }),
-    User.findByIdAndUpdate(followingId, { $inc: { followerCount: 1 } }),
+  // Đếm lại số lượng thực tế trong DB
+  const [followerCount, followingCount] = await Promise.all([
+    Follow.countDocuments({ followingId, }), // số người theo dõi followingId
+    Follow.countDocuments({ followerId, }),  // số người mà followerId đang theo dõi
   ]);
 
-  return { success: true };
+  // Cập nhật lại vào User
+  await Promise.all([
+    User.findByIdAndUpdate(followingId, { followerCount }),
+    User.findByIdAndUpdate(followerId, { followingCount }),
+  ]);
+
+  // Lấy lại user mới nhất
+  const [followerUser, followingUser] = await Promise.all([
+    User.findById(followerId),
+    User.findById(followingId),
+  ]);
+
+  return {
+    success: true,
+    follower: {
+      _id: followerUser._id,
+      followingCount: followerUser.followingCount,
+      followerCount: followerUser.followerCount,
+    },
+    following: {
+      _id: followingUser._id,
+      followingCount: followingUser.followingCount,
+      followerCount: followingUser.followerCount,
+    },
+  };
 };
 
 /**
@@ -59,13 +83,37 @@ export const unfollowUser = async (followerId, followingId) => {
   // Hard delete the follow relationship
   await Follow.deleteOne({ _id: follow._id });
 
-  // Update follow counts atomically
-  await Promise.all([
-    User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } }),
-    User.findByIdAndUpdate(followingId, { $inc: { followerCount: -1 } }),
+  // Đếm lại số lượng thực tế trong DB
+  const [followerCount, followingCount] = await Promise.all([
+    Follow.countDocuments({ followingId, }), // số người theo dõi followingId
+    Follow.countDocuments({ followerId, }),  // số người mà followerId đang theo dõi
   ]);
 
-  return { success: true };
+  // Cập nhật lại vào User
+  await Promise.all([
+    User.findByIdAndUpdate(followingId, { followerCount }),
+    User.findByIdAndUpdate(followerId, { followingCount }),
+  ]);
+
+  // Lấy lại user mới nhất
+  const [followerUser, followingUser] = await Promise.all([
+    User.findById(followerId),
+    User.findById(followingId),
+  ]);
+
+  return {
+    success: true,
+    follower: {
+      _id: followerUser._id,
+      followingCount: followerUser.followingCount,
+      followerCount: followerUser.followerCount,
+    },
+    following: {
+      _id: followingUser._id,
+      followingCount: followingUser.followingCount,
+      followerCount: followingUser.followerCount,
+    },
+  };
 };
 
 /**
