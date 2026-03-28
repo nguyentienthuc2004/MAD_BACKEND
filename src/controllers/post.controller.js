@@ -1,16 +1,16 @@
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
-import { countPostLikes, countPostComments } from "../services/count.service.js";
+import {
+  countPostLikes,
+  countPostComments,
+} from "../services/count.service.js";
 import { moderateImagesWithCheckpoint } from "../services/imageModeration.service.js";
 import { moderateImagesWithAiService } from "../services/imageModerationApi.service.js";
 
 const normalizeHashtags = (hashtags) => {
   const sanitize = (value) =>
-    String(value)
-      .trim()
-      .replace(/^#+/, "")
-      .toLowerCase();
+    String(value).trim().replace(/^#+/, "").toLowerCase();
 
   if (!hashtags) return [];
 
@@ -28,10 +28,7 @@ const normalizeHashtags = (hashtags) => {
         return parsedHashtags.map(sanitize).filter(Boolean);
       }
     } catch {
-      return trimmedHashtags
-        .split(",")
-        .map(sanitize)
-        .filter(Boolean);
+      return trimmedHashtags.split(",").map(sanitize).filter(Boolean);
     }
   }
 
@@ -87,7 +84,7 @@ export const getPostsByUser = async (req, res) => {
         commentCount: await countPostComments(p._id),
       })),
     );
-    
+
     return res.status(200).json({
       success: true,
       message: "Posts retrieved successfully",
@@ -124,7 +121,7 @@ export const createPost = async (req, res) => {
       files.map(async (file) => {
         const uploaded = await uploadBufferToCloudinary(file.buffer, "posts");
         return uploaded.secure_url;
-      })
+      }),
     );
 
     const newPost = await Post.create({
@@ -155,7 +152,22 @@ export const createPost = async (req, res) => {
 export const editPost = async (req, res) => {
   try {
     const { postId } = req.params;
-    const { caption, hashtags, musicId, existingImages } = req.body;
+    let { caption, hashtags, musicId, existingImages } = req.body;
+    console.log("[editPost] body:", JSON.stringify(req.body));
+    // Đảm bảo existingImages luôn là mảng
+    if (typeof existingImages === "string") {
+      try {
+        existingImages = JSON.parse(existingImages);
+      } catch (e) {
+        console.error("[editPost] Error parsing existingImages:", e);
+        existingImages = [];
+      }
+    }
+    if (!Array.isArray(existingImages)) {
+      console.error("[editPost] existingImages is not an array after parse.");
+      existingImages = [];
+    }
+    console.log("[editPost] Existing Images (normalized):", existingImages);
     const user = req.user;
 
     if (!user?.userId) {
@@ -185,26 +197,14 @@ export const editPost = async (req, res) => {
     }
 
     const keptImages = normalizeImageUrls(existingImages);
-    const invalidImages = keptImages.filter((imageUrl) => !post.images.includes(imageUrl));
-
-    if (invalidImages.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Some existing image URLs are invalid",
-      });
-    }
+    // Cho phép mọi URL Cloudinary hợp lệ, không kiểm tra phải là ảnh cũ trong post.images
 
     const files = req.files || [];
-    const imageModerationResult = await moderateImagesWithCheckpoint({
-      files,
-      imageUrls: keptImages,
-    });
-
     const uploadedImages = await Promise.all(
       files.map(async (file) => {
         const uploaded = await uploadBufferToCloudinary(file.buffer, "posts");
         return uploaded.secure_url;
-      })
+      }),
     );
 
     const mergedImages = [...keptImages, ...uploadedImages];
@@ -227,11 +227,20 @@ export const editPost = async (req, res) => {
     if (musicId !== undefined) {
       post.musicId = normalizeMusicId(musicId);
     }
-
+    if (files.length > 0) {
+      // Sử dụng AI moderation API thay cho script cục bộ
+      const imageModerationResult = await moderateImagesWithAiService({
+        files,
+        threshold: 0.8, // hoặc lấy từ env/config nếu muốn
+      });
+      console.log("[editPost] Image Moderation Result:", imageModerationResult);
+      post.isSensitive = imageModerationResult.isSensitive;
+      post.moderationStatus = imageModerationResult.isSensitive
+        ? "flagged"
+        : "clean";
+      post.moderationFlags = imageModerationResult.flags;
+    }
     post.images = mergedImages;
-    post.isSensitive = imageModerationResult.isSensitive;
-    post.moderationStatus = imageModerationResult.isSensitive ? "flagged" : "clean";
-    post.moderationFlags = imageModerationResult.flags;
 
     await post.save();
 
@@ -241,10 +250,12 @@ export const editPost = async (req, res) => {
       data: post,
     });
   } catch (error) {
+    console.error("[editPost] Error:", error);
     return res.status(500).json({
       success: false,
       message: "An error occurred while editing the post",
       error: error.message,
+      stack: error.stack,
     });
   }
 };
@@ -355,4 +366,3 @@ export const getPostsNotByMe = async (req, res) => {
     });
   }
 };
-
