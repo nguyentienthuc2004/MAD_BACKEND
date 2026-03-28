@@ -1,3 +1,29 @@
+/**
+ * Check follow status
+ * GET /follow/:userId/status
+ */
+export const checkFollowStatus = async (req, res) => {
+  try {
+    const followerId = req.user?.userId;
+    const { userId } = req.params;
+    console.log("Check follow status:", { followerId, userId });
+    if (!followerId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    if (followerId === userId) {
+      // Không thể tự follow chính mình
+      return res.json({ isFollowing: false });
+    }
+    const follow = await (await import("../models/follow.model.js")).default.findOne({
+      followerId,
+      followingId: userId,
+    });
+    res.json({ isFollowing: !!follow });
+  } catch (error) {
+    console.error("Error checking follow status:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 import followService from "../services/follow.service.js";
 
 /**
@@ -128,33 +154,33 @@ export const getFollowing = async (req, res) => {
   }
 };
 
-/**
- * Check follow status
- * GET /users/:userId/follow-status
- */
-export const checkFollowStatus = async (req, res) => {
-  try {
-    const currentUserId = req.user?.userId;
-    const { userId } = req.params;
+// /**
+//  * Check follow status
+//  * GET /users/:userId/follow-status
+//  */
+// export const checkFollowStatus = async (req, res) => {
+//   try {
+//     const currentUserId = req.user?.userId;
+//     const { userId } = req.params;
 
-    if (!currentUserId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
+//     if (!currentUserId) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized",
+//       });
+//     }
 
-    const result = await followService.checkFollowStatus(currentUserId, userId);
+//     const result = await followService.checkFollowStatus(currentUserId, userId);
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error("Error checking follow status:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       data: result,
+//     });
+//   } catch (error) {
+//     console.error("Error checking follow status:", error);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
 
 export default {
   followUser,

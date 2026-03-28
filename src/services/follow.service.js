@@ -14,35 +14,20 @@ export const followUser = async (followerId, followingId) => {
   }
 
   const followingUser = await User.findById(followingId);
-
   if (!followingUser || followingUser.isDeleted) {
     return { success: false, status: 404, message: "User not found" };
   }
 
-  // Check if already following (active)
+  // Check if already following (any)
   const existingFollow = await Follow.findOne({
     followerId,
     followingId,
-    isDeleted: false,
   });
-
   if (existingFollow) {
     return { success: false, status: 400, message: "You are already following this user" };
   }
 
-  // Check if there's a soft-deleted follow relationship to restore
-  const deletedFollow = await Follow.findOne({
-    followerId,
-    followingId,
-    isDeleted: true,
-  });
-
-  if (deletedFollow) {
-    deletedFollow.isDeleted = false;
-    await deletedFollow.save();
-  } else {
-    await Follow.create({ followerId, followingId });
-  }
+  await Follow.create({ followerId, followingId });
 
   // Update follow counts atomically
   await Promise.all([
@@ -66,16 +51,13 @@ export const unfollowUser = async (followerId, followingId) => {
   const follow = await Follow.findOne({
     followerId,
     followingId,
-    isDeleted: false,
   });
-
   if (!follow) {
     return { success: false, status: 400, message: "You are not following this user" };
   }
 
-  // Soft delete the follow relationship
-  follow.isDeleted = true;
-  await follow.save();
+  // Hard delete the follow relationship
+  await Follow.deleteOne({ _id: follow._id });
 
   // Update follow counts atomically
   await Promise.all([
