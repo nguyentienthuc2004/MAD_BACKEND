@@ -174,7 +174,7 @@ export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevan
       if (currentUserId) {
         try {
           countFilter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
-        } catch (err) {}
+        } catch (err) { }
       }
 
       totalCount = await Post.countDocuments(countFilter);
@@ -244,7 +244,7 @@ export const searchPostsByHashtag = async (hashtag, page = 1, limit = 20, curren
   if (currentUserId) {
     try {
       filter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
-    } catch (err) {}
+    } catch (err) { }
   }
 
   const [posts, totalCount] = await Promise.all([
@@ -310,28 +310,22 @@ export const globalSearch = async (query, limit = 5, currentUserId = null) => {
       .select("username displayName fullName avatarUrl followerCount")
       .limit(parseInt(limit)),
 
-    (() => {
-      const pFilter = {
-        isDeleted: false,
-        $or: [
-          { caption: { $regex: searchQuery, $options: "i" } },
-          { hashtags: { $in: [searchQuery] } },
-        ],
-      };
+    Post.find({
+      isDeleted: false,
+      ...(currentUserId && { userId: { $ne: currentUserId } }),
+      $or: [
+        { caption: { $regex: searchQuery, $options: "i" } },
+        { hashtags: { $in: [searchQuery] } },
+      ],
+    })
+      .populate("userId", "-password")
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 }),
 
-      if (currentUserId) {
-        try {
-          pFilter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
-        } catch (err) {}
-      }
-
-      return Post.find(pFilter).populate("userId", "-password").limit(parseInt(limit)).sort({ createdAt: -1 });
-    })(),
-
-    (() => {
-      const hFilter = { hashtags: { $regex: searchQuery, $options: "i" }, isDeleted: false };
-      return Post.find(hFilter).select("hashtags");
-    })(),
+    Post.find({
+      hashtags: { $regex: searchQuery, $options: "i" },
+      isDeleted: false,
+    }).select("hashtags"),
   ]);
 
   const hashtags = [...new Set(hashtagMatches.flatMap((p) => p.hashtags))].slice(
