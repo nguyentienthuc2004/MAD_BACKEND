@@ -129,7 +129,35 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
+
     const userData = await userService.uploadAvatar(userId, req.file.buffer);
+
+    // --- Cập nhật avatar user trong các room-chat ---
+    try {
+      const RoomChat = (await import("../models/room-chat.model.js")).default;
+      // Tìm tất cả các phòng chat mà user là thành viên
+      await RoomChat.updateMany(
+        { isDeleted: false, "users.user_id": userId },
+        { $set: { "users.$[elem].avatar": userData.avatarUrl } },
+        { arrayFilters: [{ "elem.user_id": userId }] }
+      );
+      // Phát socket event cho các room
+      const io = req.app.get("io");
+      if (io) {
+        const rooms = await RoomChat.find({
+          isDeleted: false,
+          "users.user_id": userId
+        }).select("_id");
+        rooms.forEach(room => {
+          io.to(String(room._id)).emit("USER_AVATAR_CHANGED", {
+            userId,
+            avatarUrl: userData.avatarUrl
+          });
+        });
+      }
+    } catch (e) {
+      console.error("Update room-chat avatar or emit USER_AVATAR_CHANGED error:", e);
+    }
 
     res.status(200).json({
       success: true,
