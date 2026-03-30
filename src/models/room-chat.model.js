@@ -16,6 +16,10 @@ const roomChatSchema = new mongoose.Schema(
                 enum: ['owner', 'member', 'co_owner'],
                 default: 'owner'
             }, // owner // co_owner //member
+            deletedAt: {
+                type: Date,
+                default: null
+            }
         }],
         participantsHash: { type: String, unique: true, sparse: true }, // Chống tạo trùng
         lastMessage: {

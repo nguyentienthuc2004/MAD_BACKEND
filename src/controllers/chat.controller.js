@@ -139,6 +139,12 @@ export const getMessage = async (req, res) => {
         if (!room) {
             return res.status(403).json({ message: "Không có phòng chat" })
         }
+        // Lấy deletedAt của user trong room
+        const userInRoom = room.users.find(u => u.user_id === userId);
+        let deletedAt = null;
+        if (userInRoom && userInRoom.deletedAt) {
+            deletedAt = userInRoom.deletedAt;
+        }
         const filter = {
             room_id: roomId,
         };
@@ -146,9 +152,11 @@ export const getMessage = async (req, res) => {
             const regex = new RegExp(keyword, 'i');
             filter.content = regex
         }
-
-        if (before) {
-            filter.createdAt = { $lt: new Date(before) };
+        // Kết hợp điều kiện thời gian deletedAt và before
+        if (before || deletedAt) {
+            filter.createdAt = {};
+            if (before) filter.createdAt.$lt = new Date(before);
+            if (deletedAt) filter.createdAt.$gt = deletedAt;
         }
         const messages = await Message.find(filter)
             .sort({ createdAt: -1 })
@@ -703,6 +711,39 @@ export const deleteMessage = async (req, res) => {
             success: false,
             message: "Lỗi máy chủ",
             details: error.message,
+        });
+    }
+}
+// [DELETE] api/chat/rooms/:roomId/delete
+export const deleteRoomChatForUser = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const roomId = req.params.roomId;
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false,
+            "users.user_id": userId
+        });
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại hoặc bạn không thuộc phòng này"
+            });
+        }
+        // Cập nhật deletedAt cho user trong users array
+        await RoomChat.updateOne(
+            { _id: roomId, "users.user_id": userId },
+            { $set: { "users.$.deletedAt": new Date() } }
+        );
+        return res.status(200).json({
+            success: true,
+            message: "Đã xoá đoạn chat cho user này"
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message
         });
     }
 }

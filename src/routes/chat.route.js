@@ -1,5 +1,5 @@
 import express from "express";
-import { getRoomChat, removeMember, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage } from "../controllers/chat.controller.js";
+import { getRoomChat, removeMember, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage, deleteRoomChatForUser } from "../controllers/chat.controller.js";
 import upload from "../middleware/upload.middleware.js";
 import { Route } from "express";
 const router = express.Router();
@@ -340,6 +340,7 @@ router.post("/rooms/:roomId/messages/image", upload.array("images", 10), sendIma
  *         description: Unauthorized
  */
 router.delete("/rooms/:roomId/messages/:messageId", deleteMessage);
+
 /**
  * @swagger
  * /api/chat/groups/{roomId}/member/{userId}/role:
@@ -420,4 +421,30 @@ router.patch("/groups/:roomId/member/:userId/role", changeMemberRole);
  *         description: Không tìm thấy phòng hoặc thành viên
  */
 router.delete("/groups/:roomId/member/:userId", removeMember);
+
+/**
+ * @swagger
+ * /api/chat/rooms/{roomId}/delete:
+ *   delete:
+ *     summary: Xoá phòng chat của user
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     responses:
+ *       200:
+ *         description: Xoá phòng chat thành công
+ *       400:
+ *         description: Phòng chat không tồn tại
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete("/rooms/:roomId/delete", deleteRoomChatForUser);
+
 export default router;
