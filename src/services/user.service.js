@@ -43,62 +43,42 @@ export const getMyProfile = async (userId) => {
 };
 
 /**
- * Update user profile (displayName, fullName, bio)
+ * Update user profile (displayName, fullName, phoneNumber, bio, avatarUrl, birthday)
  * Username is immutable and cannot be changed.
  */
 export const updateProfile = async (userId, data) => {
+  const allowedUpdates = [
+    "displayName", "fullName",
+    "bio", "phoneNumber", "birthday", "avatarUrl"
+  ];
+
   const updateData = {};
-  const errors = [];
-
-  // Reject username changes
-  if (data.username !== undefined) {
-    errors.push("Username cannot be changed");
-  }
-
-  if (data.displayName !== undefined) {
-    if (typeof data.displayName !== "string" || data.displayName.trim().length === 0) {
-      errors.push("Display name must be a non-empty string");
-    } else {
-      updateData.displayName = data.displayName.trim();
+  for (const key of allowedUpdates) {
+    if (data[key] !== undefined) {
+      if (key === "birthday") {
+        // Convert birthday string to Date or null
+        updateData[key] = data[key] ? new Date(data[key]) : null;
+      } else {
+        updateData[key] = typeof data[key] === "string" ? data[key].trim() : data[key];
+      }
     }
   }
-
-  if (data.fullName !== undefined) {
-    if (typeof data.fullName !== "string") {
-      errors.push("Full name must be a string");
-    } else if (data.fullName.length > 100) {
-      errors.push("Full name cannot exceed 100 characters");
-    } else {
-      updateData.fullName = data.fullName.trim();
-    }
-  }
-
-  if (data.bio !== undefined) {
-    if (typeof data.bio !== "string") {
-      errors.push("Bio must be a string");
-    } else if (data.bio.length > 500) {
-      errors.push("Bio cannot exceed 500 characters");
-    } else {
-      updateData.bio = data.bio.trim();
-    }
-  }
-
-  if (errors.length > 0) {
-    return { success: false, errors };
-  }
-
   if (Object.keys(updateData).length === 0) {
-    return { success: false, errors: ["No fields to update"] };
+    throw new Error("No valid fields provided for update");
   }
 
-  const user = await User.findByIdAndUpdate(userId, updateData, {
-    new: true,
-    runValidators: true,
-  }).select("-password");
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $set: updateData },
+    {
+      new: true,
+      runValidators: true
+    }
+  );
 
-  return { success: true, data: user.toJSON() };
+  if (!user) throw new Error("User not found");
+  return user.toJSON();
 };
-
 /**
  * Upload/update user avatar via Cloudinary
  */
@@ -122,10 +102,43 @@ export const getAllUsers = async () => {
   return users;
 };
 
+/**
+ * change password
+ */
+export const changePassword = async (userId, data) => {
+  const user = await User.findById(userId).select("+password");
+  if (!user || user.isDeleted) {
+    throw new Error("User not found or has been deactivated");
+  }
+
+  const { oldPassword, newPassword, confirmPassword } = data;
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    throw new Error("Old password, new password and confirm password are required");
+  }
+
+  if (oldPassword === newPassword) {
+    throw new Error("New password must be different from the old one");
+  }
+  if (newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters");
+  }
+  if (confirmPassword !== newPassword) {
+    throw new Error("Confirm password does not match new password");
+  }
+  const isMatch = await user.comparePassword(oldPassword);
+  if (!isMatch) {
+    throw new Error("The current password you entered is incorrect");
+  }
+  user.password = newPassword;
+  await user.save();
+  return user.toJSON();
+};
+
 export default {
   getUserById,
   getMyProfile,
   updateProfile,
   uploadAvatar,
   getAllUsers,
+  changePassword,
 };
