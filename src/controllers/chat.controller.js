@@ -139,6 +139,12 @@ export const getMessage = async (req, res) => {
         if (!room) {
             return res.status(403).json({ message: "Không có phòng chat" })
         }
+        // Lấy deletedAt của user trong room
+        const userInRoom = room.users.find(u => u.user_id === userId);
+        let deletedAt = null;
+        if (userInRoom && userInRoom.deletedAt) {
+            deletedAt = userInRoom.deletedAt;
+        }
         const filter = {
             room_id: roomId,
         };
@@ -146,9 +152,11 @@ export const getMessage = async (req, res) => {
             const regex = new RegExp(keyword, 'i');
             filter.content = regex
         }
-
-        if (before) {
-            filter.createdAt = { $lt: new Date(before) };
+        // Kết hợp điều kiện thời gian deletedAt và before
+        if (before || deletedAt) {
+            filter.createdAt = {};
+            if (before) filter.createdAt.$lt = new Date(before);
+            if (deletedAt) filter.createdAt.$gt = deletedAt;
         }
         const messages = await Message.find(filter)
             .sort({ createdAt: -1 })
@@ -460,7 +468,46 @@ export const editRoom = async (req, res) => {
 
 // [GET] api/chat/room/:roomId/member
 export const getMember = async (req, res) => {
-
+    try {
+        const roomId = req.params.roomId;
+        const userId = req.user.userId;
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false
+        });
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại"
+            });
+        }
+        // Chỉ cho phép thành viên nhóm xem
+        const isMember = room.users.some(u => String(u.user_id) === String(userId));
+        if (!isMember) {
+            return res.status(403).json({
+                success: false,
+                message: "Bạn không phải thành viên nhóm này"
+            });
+        }
+        // Trả về danh sách users (ẩn các trường nhạy cảm nếu có)
+        return res.status(200).json({
+            success: true,
+            data: {
+                users: room.users.map(u => ({
+                    user_id: u.user_id,
+                    nickname: u.nickname,
+                    avatar: u.avatar,
+                    role: u.role
+                }))
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
 }
 
 // [PATCH] api/chat/:roomId/seen
@@ -667,3 +714,210 @@ export const deleteMessage = async (req, res) => {
         });
     }
 }
+// [DELETE] api/chat/rooms/:roomId/delete
+export const deleteRoomChatForUser = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const roomId = req.params.roomId;
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false,
+            "users.user_id": userId
+        });
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại hoặc bạn không thuộc phòng này"
+            });
+        }
+        // Cập nhật deletedAt cho user trong users array
+        await RoomChat.updateOne(
+            { _id: roomId, "users.user_id": userId },
+            { $set: { "users.$.deletedAt": new Date() } }
+        );
+        return res.status(200).json({
+            success: true,
+            message: "Đã xoá đoạn chat cho user này"
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message
+        });
+    }
+}
+// [PATCH] api/chat/groups/:roomId/member/:userId/role
+export const changeMemberRole = async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const targetUserId = req.params.userId;
+        const { newRole } = req.body; // newRole: 'owner' | 'co_owner' | 'member'
+        const userId = req.user.userId;
+
+        if (!['owner', 'co_owner', 'member'].includes(newRole)) {
+            return res.status(400).json({
+                success: false,
+                message: "Role không hợp lệ"
+            });
+        }
+
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false
+        });
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại"
+            });
+        }
+        if (room.typeRoom !== 'group') {
+            return res.status(400).json({
+                success: false,
+                message: "Chỉ nhóm chat mới đổi được role"
+            });
+        }
+        // Kiểm tra userId là owner
+        const changer = room.users.find(u => String(u.user_id) === String(userId));
+        if (!changer || changer.role !== 'owner') {
+            return res.status(403).json({
+                success: false,
+                message: "Chỉ owner mới có quyền thay đổi role thành viên"
+            });
+        }
+        // Không cho tự đổi role của mình thành non-owner (phải chuyển owner cho người khác)
+        if (String(userId) === String(targetUserId) && newRole !== 'owner') {
+            return res.status(400).json({
+                success: false,
+                message: "Owner không thể tự hạ quyền của mình, hãy chuyển owner cho người khác"
+            });
+        }
+        // Tìm thành viên cần đổi role
+        const target = room.users.find(u => String(u.user_id) === String(targetUserId));
+        if (!target) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy thành viên trong nhóm"
+            });
+        }
+        // Nếu chuyển owner
+        if (newRole === 'owner') {
+            if (target.role === 'owner') {
+                return res.status(400).json({
+                    success: false,
+                    message: "Người này đã là owner"
+                });
+            }
+            // Chuyển owner: target thành owner, owner cũ thành co_owner
+            room.users = room.users.map(u => {
+                if (String(u.user_id) === String(userId)) {
+                    return { ...u, role: 'co_owner' };
+                }
+                if (String(u.user_id) === String(targetUserId)) {
+                    return { ...u, role: 'owner' };
+                }
+                return u;
+            });
+        } else {
+            // Đổi role thường (không phải owner)
+            if (target.role === newRole) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Thành viên đã có role ${newRole}`
+                });
+            }
+            // Không cho hạ owner thành non-owner qua API này
+            if (target.role === 'owner') {
+                return res.status(400).json({
+                    success: false,
+                    message: "Không thể hạ quyền owner bằng API này, hãy chuyển owner cho người khác"
+                });
+            }
+            room.users = room.users.map(u => {
+                if (String(u.user_id) === String(targetUserId)) {
+                    return { ...u, role: newRole };
+                }
+                return u;
+            });
+        }
+        await room.save();
+
+        // Emit socket event nếu cần
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                io.to(String(roomId)).emit("SERVER_MEMBER_ROLE_CHANGED", {
+                    roomId: String(roomId),
+                    changerId: String(userId),
+                    targetId: String(targetUserId),
+                    newRole,
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_MEMBER_ROLE_CHANGED error:", socketError);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Cập nhật role thành công",
+            data: { users: room.users }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+};
+// [DELETE] api/chat/groups/:roomId/member/:userId
+export const removeMember = async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const targetUserId = req.params.userId;
+        const userId = req.user.userId;
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false
+        });
+        if (!room) {
+            return res.status(404).json({ success: false, message: "Phòng chat không tồn tại" });
+        }
+        if (room.typeRoom !== 'group') {
+            return res.status(400).json({ success: false, message: "Chỉ nhóm chat mới được xoá thành viên" });
+        }
+        const changer = room.users.find(u => String(u.user_id) === String(userId));
+        if (!changer || changer.role !== 'owner') {
+            return res.status(403).json({ success: false, message: "Chỉ owner mới có quyền xoá thành viên" });
+        }
+        if (String(userId) === String(targetUserId)) {
+            return res.status(400).json({ success: false, message: "Không thể tự xoá chính mình khỏi nhóm" });
+        }
+        const target = room.users.find(u => String(u.user_id) === String(targetUserId));
+        if (!target) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy thành viên trong nhóm" });
+        }
+        if (target.role === 'owner') {
+            return res.status(400).json({ success: false, message: "Không thể xoá owner khỏi nhóm" });
+        }
+        room.users = room.users.filter(u => String(u.user_id) !== String(targetUserId));
+        await room.save();
+        // Emit socket event nếu cần
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                io.to(String(roomId)).emit("SERVER_MEMBER_REMOVED", {
+                    roomId: String(roomId),
+                    changerId: String(userId),
+                    targetId: String(targetUserId),
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_MEMBER_REMOVED error:", socketError);
+        }
+        return res.status(200).json({ success: true, message: "Đã xoá thành viên khỏi nhóm", data: { users: room.users } });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Lỗi máy chủ", details: error.message });
+    }
+};

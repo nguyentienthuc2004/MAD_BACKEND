@@ -2,11 +2,46 @@ import express from "express";
 import {
   followUser,
   unfollowUser,
+  checkFollowStatus,
 } from "../controllers/follow.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { validateObjectId } from "../middleware/validate.middleware.js";
-
 const router = express.Router();
+/**
+ * @swagger
+ * /api/follow/{userId}/status:
+ *   get:
+ *     summary: Check follow status
+ *     tags: [Follow]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to check
+ *     responses:
+ *       200:
+ *         description: Follow status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 isFollowing:
+ *                   type: boolean
+ *                   example: true
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get("/:userId/status", authenticate, validateObjectId("userId"), checkFollowStatus);
+
+
+
 
 /**
  * @swagger

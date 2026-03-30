@@ -6,6 +6,7 @@ import {
   updateProfile,
   uploadAvatar,
   getUserDetail,
+  changePassword,
 } from "../controllers/user.controller.js";
 import {
   getFollowers,
@@ -230,5 +231,43 @@ router.get("/:id/following", validateObjectId("id"), getFollowing);
  *         description: Unauthorized
  */
 router.get("/:id/follow-status", authenticate, validateObjectId("id"), checkFollowStatus);
+
+/**
+ * @swagger
+ * /api/users/change-password:
+ *   post:
+ *     summary: Change user password
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *               - confirmPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *                 example: password123
+ *               newPassword:
+ *                 type: string
+ *                 example: newPassword123
+ *               confirmPassword:
+ *                 type: string
+ *                 example: newPassword123
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.post("/change-password", authenticate, changePassword);
 
 export default router;

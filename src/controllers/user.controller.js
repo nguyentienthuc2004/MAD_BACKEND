@@ -38,8 +38,8 @@ export const getUserProfile = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-export const getUserDetail = async(req,res)=>{
-  const {id} = req.params;
+export const getUserDetail = async (req, res) => {
+  const { id } = req.params;
   try {
     const user = await User.findById(id).select("-password");
     if (!user) {
@@ -59,7 +59,7 @@ export const getUserDetail = async(req,res)=>{
       message: "An error occurred while retrieving the user",
       error: error.message,
     });
-  } 
+  }
 };
 /**
  * Get current user profile
@@ -96,41 +96,14 @@ export const getMyProfile = async (req, res) => {
  * Update user profile (displayName, fullName, bio)
  * PUT /users/profile
  */
+
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const { displayName, fullName, bio } = req.body;
-    const result = await userService.updateProfile(userId, {
-      displayName,
-      fullName,
-      bio,
-      username: req.body.username, // Pass through for immutability check
-    });
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: result.errors.join("; "),
-        errors: result.errors,
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      data: result.data,
-    });
+    const updatedUser = await userService.updateProfile(req.user.userId, req.body);
+    return res.json({ success: true, message: "Profile updated successfully", data: updatedUser });
   } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("updateProfile error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -197,10 +170,21 @@ export const uploadAvatar = async (req, res) => {
   }
 };
 
+export const changePassword = async (req, res) => {
+  try {
+    const updatedUser = await userService.changePassword(req.user.userId, req.body);
+    return res.json({ success: true, message: "Password changed successfully", data: updatedUser });
+  } catch (error) {
+    console.error("changePassword error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 export default {
   getUsers,
   getUserProfile,
   getMyProfile,
   updateProfile,
   uploadAvatar,
+  changePassword,
 };
