@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import Post from "../models/post.model.js";
 import Follow from "../models/follow.model.js";
@@ -89,7 +90,7 @@ export const searchUsers = async (query, page = 1, limit = 20, currentUserId = n
  * Search posts by text content or hashtags using MongoDB text index.
  * Ranking factors: text relevance, recency, engagement (likes + comments).
  */
-export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevant") => {
+export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevant", currentUserId = null) => {
   const searchQuery = query.trim();
   const skip = (page - 1) * limit;
 
@@ -100,13 +101,21 @@ export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevan
     // Try text index search for relevance-based results
     if (sortBy === "relevant") {
       // Use aggregation pipeline for combined scoring
+      const matchStage = {
+        isDeleted: false,
+        $text: { $search: searchQuery },
+      };
+
+      if (currentUserId) {
+        try {
+          matchStage.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
+        } catch (err) {
+          // ignore invalid id conversion and do not add filter
+        }
+      }
+
       const pipeline = [
-        {
-          $match: {
-            isDeleted: false,
-            $text: { $search: searchQuery },
-          },
-        },
+        { $match: matchStage },
         {
           $addFields: {
             textScore: { $meta: "textScore" },
@@ -161,10 +170,14 @@ export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevan
         { path: "musicId" },
       ]);
 
-      totalCount = await Post.countDocuments({
-        isDeleted: false,
-        $text: { $search: searchQuery },
-      });
+      const countFilter = { isDeleted: false, $text: { $search: searchQuery } };
+      if (currentUserId) {
+        try {
+          countFilter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
+        } catch (err) {}
+      }
+
+      totalCount = await Post.countDocuments(countFilter);
     } else {
       throw new Error("Use regex fallback for non-relevant sorting");
     }
@@ -177,6 +190,14 @@ export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevan
         { hashtags: { $regex: searchQuery, $options: "i" } },
       ],
     };
+
+    if (currentUserId) {
+      try {
+        filter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
+      } catch (err) {
+        // ignore
+      }
+    }
 
     let sortOrder = { createdAt: -1 };
     if (sortBy === "popular") {
@@ -211,7 +232,7 @@ export const searchPosts = async (query, page = 1, limit = 20, sortBy = "relevan
 /**
  * Search posts by specific hashtag
  */
-export const searchPostsByHashtag = async (hashtag, page = 1, limit = 20) => {
+export const searchPostsByHashtag = async (hashtag, page = 1, limit = 20, currentUserId = null) => {
   const normalizedHashtag = hashtag.trim().replace(/^#+/, "").toLowerCase();
   const skip = (page - 1) * limit;
 
@@ -219,6 +240,12 @@ export const searchPostsByHashtag = async (hashtag, page = 1, limit = 20) => {
     hashtags: normalizedHashtag,
     isDeleted: false,
   };
+
+  if (currentUserId) {
+    try {
+      filter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
+    } catch (err) {}
+  }
 
   const [posts, totalCount] = await Promise.all([
     Post.find(filter)
@@ -283,21 +310,28 @@ export const globalSearch = async (query, limit = 5, currentUserId = null) => {
       .select("username displayName fullName avatarUrl followerCount")
       .limit(parseInt(limit)),
 
-    Post.find({
-      isDeleted: false,
-      $or: [
-        { caption: { $regex: searchQuery, $options: "i" } },
-        { hashtags: { $in: [searchQuery] } },
-      ],
-    })
-      .populate("userId", "-password")
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 }),
+    (() => {
+      const pFilter = {
+        isDeleted: false,
+        $or: [
+          { caption: { $regex: searchQuery, $options: "i" } },
+          { hashtags: { $in: [searchQuery] } },
+        ],
+      };
 
-    Post.find({
-      hashtags: { $regex: searchQuery, $options: "i" },
-      isDeleted: false,
-    }).select("hashtags"),
+      if (currentUserId) {
+        try {
+          pFilter.userId = { $ne: mongoose.Types.ObjectId(currentUserId) };
+        } catch (err) {}
+      }
+
+      return Post.find(pFilter).populate("userId", "-password").limit(parseInt(limit)).sort({ createdAt: -1 });
+    })(),
+
+    (() => {
+      const hFilter = { hashtags: { $regex: searchQuery, $options: "i" }, isDeleted: false };
+      return Post.find(hFilter).select("hashtags");
+    })(),
   ]);
 
   const hashtags = [...new Set(hashtagMatches.flatMap((p) => p.hashtags))].slice(
