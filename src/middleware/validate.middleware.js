@@ -26,17 +26,11 @@ export const validateObjectId = (paramName = "id") => {
  * - Validates bio (string, max 500 chars)
  */
 export const validateUpdateProfile = (req, res, next) => {
-  const { username, displayName, fullName, bio } = req.body;
+  const { username,  fullName, bio } = req.body;
   const errors = [];
 
   if (username !== undefined) {
     errors.push("Username cannot be changed");
-  }
-
-  if (displayName !== undefined) {
-    if (typeof displayName !== "string" || displayName.trim().length === 0) {
-      errors.push("Display name must be a non-empty string");
-    }
   }
 
   if (fullName !== undefined) {
