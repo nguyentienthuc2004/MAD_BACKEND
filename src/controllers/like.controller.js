@@ -4,7 +4,7 @@ import Post from "../models/post.model.js";
 import Comment from "../models/comment.model.js";
 import notificationService from "../services/notification.service.js";
 import { countPostLikes, countCommentLikes } from "../services/count.service.js";
-
+import { createLikeActivity } from "../services/userActivity.service.js";
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 export const likePost = async (req, res) => {
@@ -55,6 +55,7 @@ export const likePost = async (req, res) => {
       } catch (e) {
         console.error("Notification upsert error:", e);
       }
+      createLikeActivity(userId, postId);
     } else if (!existingLike.isDeleted) {
       await Like.updateOne(
         { _id: existingLike._id },
