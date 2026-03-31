@@ -1,4 +1,4 @@
-import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById } from "../controllers/post.controller.js";
+import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, viewPost } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
@@ -145,5 +145,6 @@ router.get("/getPostsNotByMe",getPostsNotByMe);
 
 router.get("/:postId", getPostById);
 
+router.post("/:postId/view", viewPost)
 
 export default router;
