@@ -1,6 +1,6 @@
 
-import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, getPostsLikedByUser, viewPost } from "../controllers/post.controller.js";
 
+import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, getPostsLikedByUser, viewPost } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
@@ -146,6 +146,10 @@ router.delete("/delete/:postId", deletePost);
 router.get("/getPostsNotByMe", getPostsNotByMe);
 
 router.get("/:postId", getPostById);
+
+router.post("/:postId/view", viewPost)
+
+router.get("/likedByUser/:userId", getPostsLikedByUser);
 
 
 router.post("/:postId/view", viewPost)

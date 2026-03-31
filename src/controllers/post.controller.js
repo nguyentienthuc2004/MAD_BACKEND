@@ -418,6 +418,7 @@ export const viewPost = async (req, res) => {
   }
 }
 
+
 export const getPostsLikedByUser = async (req, res) => {
   try {
     const { userId } = req.params;
