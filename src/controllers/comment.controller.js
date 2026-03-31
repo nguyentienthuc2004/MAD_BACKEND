@@ -3,7 +3,7 @@ import Comment from "../models/comment.model.js";
 import Post from "../models/post.model.js";
 import notificationService from "../services/notification.service.js";
 import countService from "../services/count.service.js";
-
+import { createCommentActivity } from "../services/userActivity.service.js";
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 export const createComment = async (req, res) => {
@@ -54,7 +54,7 @@ export const createComment = async (req, res) => {
     await Promise.all(notifPayloads);
 
     const populatedComment = await Comment.findById(comment._id).populate("userId", "username avatarUrl");
-
+    createCommentActivity(userId, postId);
     res.status(201).json({ success: true, data: { comment: populatedComment } });
   } catch (error) {
     if (error.name === "ValidationError") {
