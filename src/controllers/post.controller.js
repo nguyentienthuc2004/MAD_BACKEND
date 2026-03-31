@@ -1,3 +1,4 @@
+import Like from "../models/like.model.js";
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
@@ -394,5 +395,29 @@ export const viewPost = async (req, res) => {
     return res.status(201).json({ success: true, message: 'View recorded' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'An error occurred', error: error.message });
+// Lấy danh sách bài viết user đã like
+export const getPostsLikedByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "Missing userId" });
+    }
+    // Lấy danh sách postId user đã like (và chưa xóa like)
+    const liked = await Like.find({ userId, targetType: "post", isDeleted: false }).select("targetId");
+    const postIds = liked.map(l => l.targetId);
+    if (!postIds.length) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    // Lấy thông tin các bài viết đó
+    const posts = await Post.find({ _id: { $in: postIds }, isDeleted: false }).sort({ createdAt: -1 });
+    // enrich likeCount, commentCount
+    const enriched = await Promise.all(posts.map(async (p) => ({
+      ...p.toObject(),
+      likeCount: await countPostLikes(p._id),
+      commentCount: await countPostComments(p._id),
+    })));
+    return res.status(200).json({ success: true, data: enriched });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "An error occurred while retrieving liked posts", error: error.message });
   }
 };
