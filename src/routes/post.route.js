@@ -1,4 +1,4 @@
-import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById } from "../controllers/post.controller.js";
+import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, getPostsLikedByUser } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
@@ -141,9 +141,10 @@ router.put("/edit/:postId", upload.array("images", 10), editPost);
  */
 router.delete("/delete/:postId", deletePost);
 
-router.get("/getPostsNotByMe",getPostsNotByMe);
+router.get("/getPostsNotByMe", getPostsNotByMe);
 
 router.get("/:postId", getPostById);
-
+// Lấy danh sách bài viết user đã like
+router.get("/likedByUser/:userId", getPostsLikedByUser);
 
 export default router;
