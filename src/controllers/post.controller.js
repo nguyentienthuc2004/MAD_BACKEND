@@ -69,6 +69,7 @@ const normalizeImageUrls = (images) => {
 
   return [];
 };
+
 export const getPostsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -364,5 +365,34 @@ export const getPostsNotByMe = async (req, res) => {
       message: "An error occurred while retrieving posts",
       error: error.message,
     });
+  }
+};
+
+export const viewPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const user = req.user;
+
+    if (!user?.userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const post = await Post.findOne({ _id: postId, isDeleted: false });
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    // create activity record
+    try {
+      const { createViewActivity } = await import("../services/userActivity.service.js");
+      await createViewActivity(user.userId, postId);
+    } catch (e) {
+      // non-fatal: log and continue
+      console.error('[viewPost] failed to record activity', e);
+    }
+
+    return res.status(201).json({ success: true, message: 'View recorded' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'An error occurred', error: error.message });
   }
 };

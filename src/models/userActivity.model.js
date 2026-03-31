@@ -1,46 +1,26 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-const userActivity = new Schema(
+const UserActivitySchema = new Schema(
   {
-    postId: {
-      type: Schema.Types.ObjectId,
-      ref: "Post",
+    activity_type: {
+      type: String,
+      enum: ['view', 'like', 'comment'],
       required: true,
       index: true,
     },
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
       index: true,
     },
-    rootCommentId: {
+    postId: {
       type: Schema.Types.ObjectId,
-      ref: "Comment",
+      ref: 'Post',
       required: true,
-      default: function () {
-        return this._id;
-      },
       index: true,
-    },
-    parentCommentId: {
-      type: Schema.Types.ObjectId,
-      ref: "Comment",
-      default: null,
-      index: true,
-    },
-    content: {
-      type: String,
-      required: [true, "Content is required"],
-      trim: true,
-      maxlength: [2000, "Content cannot exceed 2000 characters"],
-    },
-    mentionUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
     },
     isDeleted: {
       type: Boolean,
@@ -52,8 +32,8 @@ const userActivity = new Schema(
   }
 );
 
-CommentSchema.index({ postId: 1, rootCommentId: 1, createdAt: -1 });
+UserActivitySchema.index({ postId: 1, userId: 1, activity_type: 1, createdAt: -1 });
 
-const Comment = mongoose.model("Comment", CommentSchema, "comments");
+const UserActivity = mongoose.model('UserActivity', UserActivitySchema, 'user_activities');
 
-export default Comment;
+export default UserActivity;
