@@ -282,6 +282,11 @@ export const getPostById = async (req, res) => {
     const likeCount = await countPostLikes(post._id);
     const commentCount = await countPostComments(post._id);
 
+    // Lưu lại hoạt động xem bài viết khi xem chi tiết
+    if (req.user?.userId) {
+      await createViewActivity(req.user.userId, post._id);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Post retrieved successfully",
@@ -357,6 +362,13 @@ export const getPostsNotByMe = async (req, res) => {
         likeCount: await countPostLikes(p._id),
         commentCount: await countPostComments(p._id),
       })),
+    );
+
+    // Lưu lại hoạt động xem bài viết khi lướt bài viết
+    await Promise.all(
+      posts.map(async (p) => {
+        await createViewActivity(user.userId, p._id);
+      })
     );
 
     return res.status(200).json({
