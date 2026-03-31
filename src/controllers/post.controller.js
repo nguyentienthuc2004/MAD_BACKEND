@@ -8,6 +8,7 @@ import {
 } from "../services/count.service.js";
 import { moderateImagesWithCheckpoint } from "../services/imageModeration.service.js";
 import { moderateImagesWithAiService } from "../services/imageModerationApi.service.js";
+import { createViewActivity } from "../services/userActivity.service.js";
 
 const normalizeHashtags = (hashtags) => {
   const sanitize = (value) =>
@@ -136,6 +137,9 @@ export const createPost = async (req, res) => {
       moderationStatus: imageModerationResult.isSensitive ? "flagged" : "clean",
       moderationFlags: imageModerationResult.flags,
     });
+
+    // Ghi nhận hoạt động xem (view) khi tạo bài viết
+    await createViewActivity(user.userId, newPost._id);
 
     return res.status(201).json({
       success: true,
@@ -385,7 +389,6 @@ export const viewPost = async (req, res) => {
 
     // create activity record
     try {
-      const { createViewActivity } = await import("../services/userActivity.service.js");
       await createViewActivity(user.userId, postId);
     } catch (e) {
       // non-fatal: log and continue
@@ -395,7 +398,9 @@ export const viewPost = async (req, res) => {
     return res.status(201).json({ success: true, message: 'View recorded' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'An error occurred', error: error.message });
-// Lấy danh sách bài viết user đã like
+    // Lấy danh sách bài viết user đã like
+  }
+}
 export const getPostsLikedByUser = async (req, res) => {
   try {
     const { userId } = req.params;
