@@ -8,6 +8,7 @@ import {
 } from "../services/count.service.js";
 import { moderateImagesWithCheckpoint } from "../services/imageModeration.service.js";
 import { moderateImagesWithAiService } from "../services/imageModerationApi.service.js";
+import { createViewActivity } from "../services/userActivity.service.js";
 
 const normalizeHashtags = (hashtags) => {
   const sanitize = (value) =>
@@ -136,6 +137,9 @@ export const createPost = async (req, res) => {
       moderationStatus: imageModerationResult.isSensitive ? "flagged" : "clean",
       moderationFlags: imageModerationResult.flags,
     });
+
+    // Ghi nhận hoạt động xem (view) khi tạo bài viết
+    await createViewActivity(user.userId, newPost._id);
 
     return res.status(201).json({
       success: true,
@@ -278,6 +282,11 @@ export const getPostById = async (req, res) => {
     const likeCount = await countPostLikes(post._id);
     const commentCount = await countPostComments(post._id);
 
+    // Lưu lại hoạt động xem bài viết khi xem chi tiết
+    if (req.user?.userId) {
+      await createViewActivity(req.user.userId, post._id);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Post retrieved successfully",
@@ -355,6 +364,13 @@ export const getPostsNotByMe = async (req, res) => {
       })),
     );
 
+    // Lưu lại hoạt động xem bài viết khi lướt bài viết
+    await Promise.all(
+      posts.map(async (p) => {
+        await createViewActivity(user.userId, p._id);
+      })
+    );
+
     return res.status(200).json({
       success: true,
       message: "Posts retrieved successfully",
@@ -368,6 +384,7 @@ export const getPostsNotByMe = async (req, res) => {
     });
   }
 };
+
 
 export const viewPost = async (req, res) => {
   try {
@@ -386,6 +403,7 @@ export const viewPost = async (req, res) => {
     // create activity record
     try {
       const { createViewActivity } = await import("../services/userActivity.service.js");
+
       await createViewActivity(user.userId, postId);
     } catch (e) {
       // non-fatal: log and continue
@@ -395,10 +413,12 @@ export const viewPost = async (req, res) => {
     return res.status(201).json({ success: true, message: 'View recorded' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'An error occurred', error: error.message });
-  }
-};
 
-// Lấy danh sách bài viết user đã like
+    // Lấy danh sách bài viết user đã like
+  }
+}
+
+
 export const getPostsLikedByUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -422,6 +442,5 @@ export const getPostsLikedByUser = async (req, res) => {
     return res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     return res.status(500).json({ success: false, message: "An error occurred while retrieving liked posts", error: error.message });
-
   }
 };
