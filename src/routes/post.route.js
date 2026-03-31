@@ -1,8 +1,6 @@
-<<<<<<< HEAD
-import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, viewPost } from "../controllers/post.controller.js";
-=======
-import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, getPostsLikedByUser } from "../controllers/post.controller.js";
->>>>>>> 4ce324b (Lấy bài viết đã tim)
+
+import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, getPostsLikedByUser, viewPost } from "../controllers/post.controller.js";
+
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
 const router = express.Router();
@@ -148,12 +146,15 @@ router.delete("/delete/:postId", deletePost);
 router.get("/getPostsNotByMe", getPostsNotByMe);
 
 router.get("/:postId", getPostById);
-<<<<<<< HEAD
+
 
 router.post("/:postId/view", viewPost)
-=======
+
 // Lấy danh sách bài viết user đã like
 router.get("/likedByUser/:userId", getPostsLikedByUser);
->>>>>>> 4ce324b (Lấy bài viết đã tim)
+
+// Lấy danh sách bài viết user đã like
+router.get("/likedByUser/:userId", getPostsLikedByUser);
+
 
 export default router;
