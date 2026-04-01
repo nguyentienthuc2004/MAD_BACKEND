@@ -99,6 +99,25 @@ router.post("/posts/:postId/like", authenticate, likePost);
  */
 router.post("/comments/:commentId/like", authenticate, likeComment);
 
+/**
+ * @swagger
+ * /api/comments/{commentId}/likes:
+ *   get:
+ *     summary: Get list of users who liked a comment
+ *     tags: [Likes]
+ *     parameters:
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Comment ID
+ *     responses:
+ *       200:
+ *         description: List of users who liked the comment
+ *       400:
+ *         description: Invalid comment ID
+ */
 router.get("/comments/:commentId/likes", getCommentLikes);
 
 /**
