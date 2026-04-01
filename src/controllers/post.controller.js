@@ -362,6 +362,12 @@ export const getPostsNotByMe = async (req, res) => {
       return [];
     });
 
+    console.log("[getPostsNotByMe][debug] recommendedPostIds", {
+      userId: String(user.userId),
+      count: recommendedPostIds.length,
+      sample: recommendedPostIds.slice(0, 20).map(String),
+    });
+
     const followedUsers = await Follow.find({
       followerId: user.userId,
       isDeleted: false,
@@ -374,20 +380,22 @@ export const getPostsNotByMe = async (req, res) => {
     const viewedActivities = await UserActivity.find({
       userId: user.userId,
       activity_type: "view",
-      isDeleted: false,
+      isDeleted: { $ne: true },
     }).select("postId");
 
     const viewedPostIds = viewedActivities
       .map((activity) => String(activity.postId))
       .filter(Boolean);
+    const viewedPostIdSet = new Set(viewedPostIds);
+    const uniqueViewedPostIds = Array.from(viewedPostIdSet);
 
     let followUnseenPostIds = [];
 
     if (followedUserIds.length) {
       const followUnseenPosts = await Post.find({
         userId: { $in: followedUserIds, $ne: user.userId },
-        _id: { $nin: viewedPostIds },
-        isDeleted: false,
+        _id: { $nin: uniqueViewedPostIds },
+        isDeleted: { $ne: true },
       })
         .select("_id")
         .sort({ createdAt: -1 });
@@ -397,41 +405,109 @@ export const getPostsNotByMe = async (req, res) => {
         .filter(Boolean);
     }
 
+    console.log("[getPostsNotByMe][debug] followUnseenPostIds", {
+      userId: String(user.userId),
+      count: followUnseenPostIds.length,
+      sample: followUnseenPostIds.slice(0, 20),
+    });
+
+    console.log("[getPostsNotByMe][debug] viewedPostIds", {
+      userId: String(user.userId),
+      count: viewedPostIds.length,
+      uniqueCount: uniqueViewedPostIds.length,
+      sample: viewedPostIds.slice(0, 20),
+    });
+
     const orderedPostIds = [];
     const seenPostIds = new Set();
 
-    for (const postId of [...followUnseenPostIds, ...recommendedPostIds.map(String)]) {
-      if (!postId || seenPostIds.has(postId)) {
+    for (const postIdRaw of [...followUnseenPostIds, ...recommendedPostIds]) {
+      const postId = String(postIdRaw || "");
+      if (!postId || seenPostIds.has(postId) || viewedPostIdSet.has(postId)) {
         continue;
       }
       seenPostIds.add(postId);
       orderedPostIds.push(postId);
     }
 
+    console.log("[getPostsNotByMe][debug] mergedOrderedPostIds", {
+      userId: String(user.userId),
+      count: orderedPostIds.length,
+      sample: orderedPostIds.slice(0, 30),
+    });
+
     let posts = [];
 
     if (orderedPostIds.length) {
-      const orderedPosts = await Post.find({
+      const orderedPostsRaw = await Post.find({
         _id: { $in: orderedPostIds },
-        userId: { $ne: user.userId },
-        isDeleted: false,
       });
 
       const postById = new Map(
-        orderedPosts.map((post) => [String(post._id), post]),
+        orderedPostsRaw.map((post) => [String(post._id), post]),
       );
 
+      const dropStats = {
+        notFound: 0,
+        isOwnPost: 0,
+        isDeleted: 0,
+        alreadyViewed: 0,
+      };
+
       posts = orderedPostIds
-        .map((postId) => postById.get(postId))
+        .map((postId) => {
+          const post = postById.get(postId);
+          if (!post) {
+            dropStats.notFound += 1;
+            return null;
+          }
+
+          if (String(post.userId) === String(user.userId)) {
+            dropStats.isOwnPost += 1;
+            return null;
+          }
+
+          if (post.isDeleted === true) {
+            dropStats.isDeleted += 1;
+            return null;
+          }
+
+          if (viewedPostIdSet.has(postId)) {
+            dropStats.alreadyViewed += 1;
+            return null;
+          }
+
+          return post;
+        })
         .filter(Boolean);
+
+      console.log("[getPostsNotByMe][debug] orderedPostFilterStats", {
+        userId: String(user.userId),
+        requested: orderedPostIds.length,
+        resolved: orderedPostsRaw.length,
+        kept: posts.length,
+        dropped: dropStats,
+      });
     }
 
     if (!posts.length) {
       posts = await Post.find({
+        _id: { $nin: uniqueViewedPostIds },
         userId: { $ne: user.userId },
-        isDeleted: false,
+        isDeleted: { $ne: true },
       }).sort({ createdAt: -1 });
+
+      console.log("[getPostsNotByMe][debug] fallbackUsed", {
+        userId: String(user.userId),
+        count: posts.length,
+      });
     }
+
+    console.log("[getPostsNotByMe][debug] responsePosts", {
+      userId: String(user.userId),
+      count: posts.length,
+      sample: posts.slice(0, 30).map((p) => String(p._id)),
+    });
 
     const enriched = await Promise.all(
       posts.map(async (p) => ({
@@ -441,16 +517,18 @@ export const getPostsNotByMe = async (req, res) => {
       })),
     );
 
-    // Lưu lại hoạt động xem bài viết khi lướt bài viết
-    await Promise.all(
-      posts.map(async (p) => {
-        await createViewActivity(user.userId, p._id);
-      }),
-    );
+    const viewedAllPosts = enriched.length === 0;
+    const responseMessage = viewedAllPosts
+      ? "Bạn đã xem hết bài viết"
+      : "Posts retrieved successfully";
+
+    // Do not mark feed results as "viewed" here.
+    // A view should be recorded only when the user opens a specific post (see `viewPost`).
 
     return res.status(200).json({
       success: true,
-      message: "Posts retrieved successfully",
+      message: responseMessage,
+      viewedAllPosts,
       data: enriched,
     });
   } catch (error) {
