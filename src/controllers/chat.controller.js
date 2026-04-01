@@ -1099,6 +1099,76 @@ export const removeMember = async (req, res) => {
         return res.status(500).json({ success: false, message: "Lỗi máy chủ", details: error.message });
     }
 };
+
+// [DELETE] api/chat/groups/:roomId/leave
+export const leaveGroup = async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const userId = req.user.userId;
+
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false,
+        });
+
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại",
+            });
+        }
+
+        if (room.typeRoom !== "group") {
+            return res.status(400).json({
+                success: false,
+                message: "Chỉ nhóm chat mới có thể rời nhóm",
+            });
+        }
+
+        const me = room.users.find((u) => String(u.user_id) === String(userId));
+        if (!me) {
+            return res.status(403).json({
+                success: false,
+                message: "Bạn không thuộc nhóm chat này",
+            });
+        }
+
+        if (me.role === "owner") {
+            return res.status(400).json({
+                success: false,
+                message: "Chủ nhóm không thể rời nhóm. Hãy chuyển quyền chủ nhóm trước.",
+            });
+        }
+
+        room.users = room.users.filter((u) => String(u.user_id) !== String(userId));
+        await room.save();
+
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                io.to(String(roomId)).emit("SERVER_MEMBER_LEFT", {
+                    roomId: String(roomId),
+                    userId: String(userId),
+                    userName: me.nickname || "Một thành viên",
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_MEMBER_LEFT error:", socketError);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã rời khỏi nhóm",
+            data: { roomId: String(roomId) },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+};
 // [PATCH] api/chat/room/:roomId/title
 export const changeRoomTitle = async (req, res) => {
     const roomId = req.params.roomId;
@@ -1150,12 +1220,8 @@ export const changeRoomTitle = async (req, res) => {
 // [PATCH] api/chat/room/:roomId/avatar
 export const changeRoomAvatar = async (req, res) => {
     const roomId = req.params.roomId;
-    const { avatar } = req.body;
     const userId = req.user.userId;
     try {
-        if (!avatar || typeof avatar !== "string" || !avatar.trim()) {
-            return res.status(400).json({ success: false, message: "Avatar không hợp lệ" });
-        }
         const room = await RoomChat.findOne({ _id: roomId, isDeleted: false });
         if (!room) {
             return res.status(404).json({ success: false, message: "Phòng chat không tồn tại" });
@@ -1167,7 +1233,32 @@ export const changeRoomAvatar = async (req, res) => {
         if (!member || (member.role !== "owner" && member.role !== "co_owner")) {
             return res.status(403).json({ success: false, message: "Bạn không có quyền đổi avatar nhóm" });
         }
-        room.avatar = avatar.trim();
+
+        let nextAvatarUrl = null;
+        if (req.file) {
+            const uploaded = await uploadBufferToCloudinary(req.file.buffer, "group_avatars");
+            nextAvatarUrl = uploaded.secure_url;
+        } else {
+            const avatar = req.body?.avatar;
+            if (!avatar || typeof avatar !== "string" || !avatar.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Avatar không hợp lệ. Hãy gửi file 'avatar' (multipart/form-data) hoặc URL http(s)",
+                });
+            }
+
+            const trimmed = avatar.trim();
+            const looksLikeLocalUri = /^(file:|content:|blob:|ph:|assets-library:)/i.test(trimmed) || /^[a-zA-Z]:\\/.test(trimmed);
+            if (looksLikeLocalUri) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Avatar đang là đường dẫn local. Hãy upload file 'avatar' (multipart/form-data) để lưu URL public",
+                });
+            }
+            nextAvatarUrl = trimmed;
+        }
+
+        room.avatar = nextAvatarUrl;
         await room.save();
 
         // Realtime notice
@@ -1189,7 +1280,11 @@ export const changeRoomAvatar = async (req, res) => {
             console.error("Emit SERVER_ROOM_AVATAR_CHANGED error:", socketError);
         }
 
-        return res.status(200).json({ success: true, message: "Đổi avatar nhóm thành công", data: { room } });
+        return res.status(200).json({
+            success: true,
+            message: "Đổi avatar nhóm thành công",
+            data: { room, avatarUrl: room.avatar },
+        });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Lỗi máy chủ", details: error.message });
     }

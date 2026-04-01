@@ -1,5 +1,5 @@
 import express from "express";
-import { getRoomChat, removeMember, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, addMemberToGroup, sendImage, deleteRoomChatForUser, changeRoomTitle, changeRoomAvatar } from "../controllers/chat.controller.js";
+import { getRoomChat, removeMember, leaveGroup, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, addMemberToGroup, sendImage, deleteRoomChatForUser, changeRoomTitle, changeRoomAvatar } from "../controllers/chat.controller.js";
 import upload from "../middleware/upload.middleware.js";
 import { Route } from "express";
 const router = express.Router();
@@ -465,6 +465,35 @@ router.delete("/groups/:roomId/member/:userId", removeMember);
 
 /**
  * @swagger
+ * /api/chat/groups/{roomId}/leave:
+ *   delete:
+ *     summary: Rời khỏi nhóm chat (user tự rời)
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     responses:
+ *       200:
+ *         description: Đã rời khỏi nhóm
+ *       400:
+ *         description: Dữ liệu không hợp lệ hoặc chủ nhóm không thể rời
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Không thuộc nhóm
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
+router.delete("/groups/:roomId/leave", leaveGroup);
+
+/**
+ * @swagger
  * /api/chat/rooms/{roomId}/delete:
  *   delete:
  *     summary: Xoá phòng chat của user
@@ -492,5 +521,5 @@ router.delete("/rooms/:roomId/delete", deleteRoomChatForUser);
 
 router.patch("/room/:roomId/title", changeRoomTitle);
 
-router.patch("/room/:roomId/avatar", changeRoomAvatar);
+router.patch("/room/:roomId/avatar", upload.single("avatar"), changeRoomAvatar);
 export default router;
