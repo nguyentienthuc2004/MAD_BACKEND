@@ -602,6 +602,8 @@ export const addMemberToGroup = async (req, res) => {
                     changedMembers.push({
                         userId: targetId,
                         nickname: existing.nickname || userDoc.username || "",
+                        avatar: existing.avatar || userDoc.avatarUrl || "",
+                        role: existing.role || "member",
                     });
                 }
                 continue;
@@ -618,12 +620,13 @@ export const addMemberToGroup = async (req, res) => {
             changedMembers.push({
                 userId: targetId,
                 nickname: userDoc.username || "",
+                avatar: userDoc.avatarUrl || "",
+                role: "member",
             });
         }
 
         await room.save();
 
-        // Emit socket event (non-fatal)
         try {
             const io = req.app.get("io");
             if (io) {
@@ -991,15 +994,38 @@ export const changeMemberRole = async (req, res) => {
         }
         await room.save();
 
-        // Emit socket event nếu cần
         try {
             const io = req.app.get("io");
             if (io) {
+                const changerMember = room.users.find(
+                    (u) => String(u.user_id) === String(userId),
+                );
+                const targetMember = room.users.find(
+                    (u) => String(u.user_id) === String(targetUserId),
+                );
+
+                // Nếu chuyển owner thì trong logic có thay đổi role cho cả changer và target.
+                const changes = [];
+                // always include target
+                changes.push({ userId: String(targetUserId), newRole });
+                // include changer's new role if it changed (owner -> co_owner) when transferring owner
+                if (newRole === "owner") {
+                    const afterChanger = room.users.find(
+                        (u) => String(u.user_id) === String(userId),
+                    );
+                    if (afterChanger?.role && afterChanger.role !== "owner") {
+                        changes.push({ userId: String(userId), newRole: afterChanger.role });
+                    }
+                }
+
                 io.to(String(roomId)).emit("SERVER_MEMBER_ROLE_CHANGED", {
                     roomId: String(roomId),
                     changerId: String(userId),
+                    changerName: changerMember?.nickname || "Một thành viên",
                     targetId: String(targetUserId),
+                    targetName: targetMember?.nickname || "một thành viên",
                     newRole,
+                    changes,
                 });
             }
         } catch (socketError) {
@@ -1055,10 +1081,14 @@ export const removeMember = async (req, res) => {
         try {
             const io = req.app.get("io");
             if (io) {
+                const changerName = changer?.nickname || "Một thành viên";
+                const targetName = target?.nickname || "một thành viên";
                 io.to(String(roomId)).emit("SERVER_MEMBER_REMOVED", {
                     roomId: String(roomId),
                     changerId: String(userId),
+                    changerName,
                     targetId: String(targetUserId),
+                    targetName,
                 });
             }
         } catch (socketError) {
@@ -1091,6 +1121,26 @@ export const changeRoomTitle = async (req, res) => {
         }
         room.title = title.trim();
         await room.save();
+
+        // Realtime notice
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                const changer = room.users.find(
+                    (u) => String(u.user_id) === String(userId),
+                );
+
+                io.to(String(roomId)).emit("SERVER_ROOM_TITLE_CHANGED", {
+                    roomId: String(roomId),
+                    changerId: String(userId),
+                    changerName: changer?.nickname || "Một thành viên",
+                    newTitle: String(room.title),
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_ROOM_TITLE_CHANGED error:", socketError);
+        }
+
         return res.status(200).json({ success: true, message: "Đổi tên nhóm thành công", data: { room } });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Lỗi máy chủ", details: error.message });
@@ -1119,6 +1169,26 @@ export const changeRoomAvatar = async (req, res) => {
         }
         room.avatar = avatar.trim();
         await room.save();
+
+        // Realtime notice
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                const changer = room.users.find(
+                    (u) => String(u.user_id) === String(userId),
+                );
+
+                io.to(String(roomId)).emit("SERVER_ROOM_AVATAR_CHANGED", {
+                    roomId: String(roomId),
+                    changerId: String(userId),
+                    changerName: changer?.nickname || "Một thành viên",
+                    newAvatar: String(room.avatar),
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_ROOM_AVATAR_CHANGED error:", socketError);
+        }
+
         return res.status(200).json({ success: true, message: "Đổi avatar nhóm thành công", data: { room } });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Lỗi máy chủ", details: error.message });
