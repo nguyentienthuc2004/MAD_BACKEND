@@ -510,6 +510,154 @@ export const getMember = async (req, res) => {
     }
 }
 
+// [POST] api/chat/groups/:roomId/member
+export const addMemberToGroup = async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const requesterId = req.user.userId;
+
+        const usersIdRaw = req.body?.usersId;
+        const usersId = Array.isArray(usersIdRaw)
+            ? usersIdRaw
+            : (typeof usersIdRaw === "string" && usersIdRaw ? [usersIdRaw] : []);
+
+        const candidateIds = Array.from(
+            new Set(usersId.map((id) => String(id || "").trim()).filter(Boolean)),
+        ).filter((id) => id !== String(requesterId));
+
+        if (!candidateIds.length) {
+            return res.status(400).json({
+                success: false,
+                message: "Danh sách usersId không hợp lệ",
+            });
+        }
+
+        const room = await RoomChat.findOne({ _id: roomId, isDeleted: false });
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại",
+            });
+        }
+
+        if (room.typeRoom !== "group") {
+            return res.status(400).json({
+                success: false,
+                message: "Chỉ nhóm chat mới thêm được thành viên",
+            });
+        }
+
+        const requesterMember = room.users.find(
+            (u) => String(u.user_id) === String(requesterId),
+        );
+        if (!requesterMember) {
+            return res.status(403).json({
+                success: false,
+                message: "Bạn không thuộc nhóm chat này",
+            });
+        }
+
+        if (!["owner", "co_owner"].includes(requesterMember.role)) {
+            return res.status(403).json({
+                success: false,
+                message: "Bạn không có quyền thêm thành viên",
+            });
+        }
+
+        const targetUsers = await User.find({
+            _id: { $in: candidateIds },
+            isDeleted: false,
+        }).select("username avatarUrl");
+
+        const foundIdSet = new Set(targetUsers.map((u) => String(u._id)));
+        const notFoundIds = candidateIds.filter((id) => !foundIdSet.has(String(id)));
+
+        if (notFoundIds.length) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy một số user",
+                data: { notFoundIds },
+            });
+        }
+
+        const existingById = new Map(
+            (room.users || []).map((u) => [String(u.user_id), u]),
+        );
+
+        const addedIds = [];
+        const restoredIds = [];
+        const changedMembers = [];
+
+        for (const userDoc of targetUsers) {
+            const targetId = String(userDoc._id);
+
+            const existing = existingById.get(targetId);
+            if (existing) {
+                const wasDeleted = !!existing.deletedAt;
+                existing.nickname = userDoc.username || existing.nickname;
+                existing.avatar = userDoc.avatarUrl || existing.avatar;
+                existing.deletedAt = null;
+                if (wasDeleted) {
+                    restoredIds.push(targetId);
+                    changedMembers.push({
+                        userId: targetId,
+                        nickname: existing.nickname || userDoc.username || "",
+                    });
+                }
+                continue;
+            }
+
+            room.users.push({
+                user_id: targetId,
+                nickname: userDoc.username || "",
+                avatar: userDoc.avatarUrl || "",
+                role: "member",
+                deletedAt: null,
+            });
+            addedIds.push(targetId);
+            changedMembers.push({
+                userId: targetId,
+                nickname: userDoc.username || "",
+            });
+        }
+
+        await room.save();
+
+        // Emit socket event (non-fatal)
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                io.to(String(roomId)).emit("SERVER_MEMBERS_ADDED", {
+                    roomId: String(roomId),
+                    adderId: String(requesterId),
+                    adderName: requesterMember?.nickname || "Một thành viên",
+                    members: changedMembers,
+                    addedIds,
+                    restoredIds,
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_MEMBERS_ADDED error:", socketError);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Thêm thành viên vào nhóm thành công",
+            data: {
+                room,
+                addedIds,
+                restoredIds,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+};
+
 // [PATCH] api/chat/:roomId/seen
 export const seenMessage = async (req, res) => {
     const userId = req.user.userId;

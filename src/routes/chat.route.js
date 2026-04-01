@@ -1,5 +1,5 @@
 import express from "express";
-import { getRoomChat, removeMember, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, sendImage, deleteRoomChatForUser, changeRoomTitle, changeRoomAvatar } from "../controllers/chat.controller.js";
+import { getRoomChat, removeMember, postRoomChat, getMessage, sendMessage, changeMemberRole, deleteMessage, editNickname, createGroup, seenMessage, editRoom, getMember, addMemberToGroup, sendImage, deleteRoomChatForUser, changeRoomTitle, changeRoomAvatar } from "../controllers/chat.controller.js";
 import upload from "../middleware/upload.middleware.js";
 import { Route } from "express";
 const router = express.Router();
@@ -247,6 +247,47 @@ router.patch("/rooms/:roomId", editRoom);
  *         description: Unauthorized
  */
 router.get("/groups/:roomId/member", getMember);
+
+/**
+ * @swagger
+ * /api/chat/groups/{roomId}/member:
+ *   post:
+ *     summary: Thêm thành viên vào nhóm chat (owner/co_owner)
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               usersId:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Danh sách userId cần thêm
+ *     responses:
+ *       200:
+ *         description: Thêm thành viên thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Không đủ quyền
+ *       404:
+ *         description: Không tìm thấy phòng hoặc user
+ */
+router.post("/groups/:roomId/member", addMemberToGroup);
 
 /**
  * @swagger
