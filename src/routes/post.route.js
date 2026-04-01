@@ -1,3 +1,5 @@
+
+
 import { createPost, editPost, deletePost, getPostsByUser, getPostsNotByMe, getPostById, getPostsLikedByUser, viewPost } from "../controllers/post.controller.js";
 import express from "express";
 import upload from "../middleware/upload.middleware.js";
@@ -146,7 +148,17 @@ router.get("/getPostsNotByMe", getPostsNotByMe);
 router.get("/:postId", getPostById);
 
 router.post("/:postId/view", viewPost)
+
+router.get("/likedByUser/:userId", getPostsLikedByUser);
+
+
+router.post("/:postId/view", viewPost)
+
 // Lấy danh sách bài viết user đã like
 router.get("/likedByUser/:userId", getPostsLikedByUser);
+
+// Lấy danh sách bài viết user đã like
+router.get("/likedByUser/:userId", getPostsLikedByUser);
+
 
 export default router;
