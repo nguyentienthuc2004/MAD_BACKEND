@@ -354,7 +354,7 @@ export const forgotPassword = async (req, res) => {
     return res.status(200).json({ success: true, message: "If the email exists, an OTP has been sent.", data: null });
   } catch (error) {
     console.error("forgotPassword error:", error);
-    return res.status(500).json({ success: false, message: "Server error", error: null });
+    return res.status(500).json({ success: false, message: "Server error"});
   }
 };
 
@@ -408,6 +408,7 @@ export const resetPassword = async (req, res) => {
   try {
     const resetToken = req.body?.resetToken ?? "";
     const newPassword = String(req.body?.newPassword ?? "");
+    const logoutOtherDevices = req.body?.logoutOtherDevices === true;
 
     if (!resetToken || !newPassword) {
       return res.status(400).json({ success: false, message: "resetToken and newPassword are required" });
@@ -438,7 +439,17 @@ export const resetPassword = async (req, res) => {
     await User.updateOne({ _id: user._id }, { password: hash });
     await Otp.deleteMany({ email });
 
-    return res.json({ success: true, message: "Password reset successfully" });
+    if (logoutOtherDevices) {
+      await revokeAllUserRefreshTokens(user._id);
+    }
+
+    return res.json({
+      success: true,
+      message: "Password reset successfully",
+      data: {
+        revokedAllRefreshTokens: logoutOtherDevices,
+      },
+    });
   } catch (error) {
     console.error("resetPassword error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
