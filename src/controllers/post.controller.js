@@ -557,7 +557,6 @@ export const viewPost = async (req, res) => {
 
     // create activity record
     try {
-      const { createViewActivity } = await import("../services/userActivity.service.js");
 
       await createViewActivity(user.userId, postId);
     } catch (e) {
