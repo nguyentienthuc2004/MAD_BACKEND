@@ -521,5 +521,5 @@ router.delete("/rooms/:roomId/delete", deleteRoomChatForUser);
 
 router.patch("/room/:roomId/title", changeRoomTitle);
 
-router.patch("/room/:roomId/avatar", changeRoomAvatar);
+router.patch("/room/:roomId/avatar", upload.single("avatar"), changeRoomAvatar);
 export default router;
