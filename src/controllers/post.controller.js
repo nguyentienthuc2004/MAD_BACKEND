@@ -368,7 +368,7 @@ export const getPostsNotByMe = async (req, res) => {
     }).select("followingId");
 
     const followedUserIds = followedUsers
-      .map((followItem) => followItem.followingId)
+      .map((followItem) => String(followItem.followingId))
       .filter(Boolean);
 
     const viewedActivities = await UserActivity.find({
@@ -378,34 +378,51 @@ export const getPostsNotByMe = async (req, res) => {
     }).select("postId");
 
     const viewedPostIds = viewedActivities
-      .map((activity) => activity.postId)
+      .map((activity) => String(activity.postId))
       .filter(Boolean);
 
-    let followUnseenPosts = [];
+    let followUnseenPostIds = [];
 
     if (followedUserIds.length) {
-      followUnseenPosts = await Post.find({
+      const followUnseenPosts = await Post.find({
         userId: { $in: followedUserIds, $ne: user.userId },
         _id: { $nin: viewedPostIds },
         isDeleted: false,
-      }).sort({ createdAt: -1 });
+      })
+        .select("_id")
+        .sort({ createdAt: -1 });
+
+      followUnseenPostIds = followUnseenPosts
+        .map((post) => String(post._id))
+        .filter(Boolean);
+    }
+
+    const orderedPostIds = [];
+    const seenPostIds = new Set();
+
+    for (const postId of [...followUnseenPostIds, ...recommendedPostIds.map(String)]) {
+      if (!postId || seenPostIds.has(postId)) {
+        continue;
+      }
+      seenPostIds.add(postId);
+      orderedPostIds.push(postId);
     }
 
     let posts = [];
 
-    if (recommendedPostIds.length) {
-      const recommendedPosts = await Post.find({
-        _id: { $in: recommendedPostIds },
+    if (orderedPostIds.length) {
+      const orderedPosts = await Post.find({
+        _id: { $in: orderedPostIds },
         userId: { $ne: user.userId },
         isDeleted: false,
       });
 
       const postById = new Map(
-        recommendedPosts.map((post) => [String(post._id), post]),
+        orderedPosts.map((post) => [String(post._id), post]),
       );
 
-      posts = recommendedPostIds
-        .map((postId) => postById.get(String(postId)))
+      posts = orderedPostIds
+        .map((postId) => postById.get(postId))
         .filter(Boolean);
     }
 
@@ -415,18 +432,6 @@ export const getPostsNotByMe = async (req, res) => {
         isDeleted: false,
       }).sort({ createdAt: -1 });
     }
-
-    const mergedPosts = [...followUnseenPosts, ...posts];
-    const seenPostIds = new Set();
-
-    posts = mergedPosts.filter((post) => {
-      const postId = String(post._id);
-      if (seenPostIds.has(postId)) {
-        return false;
-      }
-      seenPostIds.add(postId);
-      return true;
-    });
 
     const enriched = await Promise.all(
       posts.map(async (p) => ({
