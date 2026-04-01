@@ -1,6 +1,8 @@
 import Like from "../models/like.model.js";
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
+import Follow from "../models/follow.model.js";
+import UserActivity from "../models/userActivity.model.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import {
   countPostLikes,
@@ -8,6 +10,7 @@ import {
 } from "../services/count.service.js";
 import { moderateImagesWithCheckpoint } from "../services/imageModeration.service.js";
 import { moderateImagesWithAiService } from "../services/imageModerationApi.service.js";
+import { getRecommendedPostIds } from "../services/recommendationApi.service.js";
 import { createViewActivity } from "../services/userActivity.service.js";
 
 const normalizeHashtags = (hashtags) => {
@@ -352,10 +355,79 @@ export const getPostsNotByMe = async (req, res) => {
         message: "Unauthorized",
       });
     }
-    const posts = await Post.find({
-      userId: { $ne: user.userId },
+    const recommendedPostIds = await getRecommendedPostIds({
+      userId: user.userId,
+    }).catch((error) => {
+      console.error("[getPostsNotByMe] Recommendation service error:", error.message);
+      return [];
+    });
+
+    const followedUsers = await Follow.find({
+      followerId: user.userId,
       isDeleted: false,
-    }).sort({ createdAt: -1 });
+    }).select("followingId");
+
+    const followedUserIds = followedUsers
+      .map((followItem) => followItem.followingId)
+      .filter(Boolean);
+
+    const viewedActivities = await UserActivity.find({
+      userId: user.userId,
+      activity_type: "view",
+      isDeleted: false,
+    }).select("postId");
+
+    const viewedPostIds = viewedActivities
+      .map((activity) => activity.postId)
+      .filter(Boolean);
+
+    let followUnseenPosts = [];
+
+    if (followedUserIds.length) {
+      followUnseenPosts = await Post.find({
+        userId: { $in: followedUserIds, $ne: user.userId },
+        _id: { $nin: viewedPostIds },
+        isDeleted: false,
+      }).sort({ createdAt: -1 });
+    }
+
+    let posts = [];
+
+    if (recommendedPostIds.length) {
+      const recommendedPosts = await Post.find({
+        _id: { $in: recommendedPostIds },
+        userId: { $ne: user.userId },
+        isDeleted: false,
+      });
+
+      const postById = new Map(
+        recommendedPosts.map((post) => [String(post._id), post]),
+      );
+
+      posts = recommendedPostIds
+        .map((postId) => postById.get(String(postId)))
+        .filter(Boolean);
+    }
+
+    if (!posts.length) {
+      posts = await Post.find({
+        userId: { $ne: user.userId },
+        isDeleted: false,
+      }).sort({ createdAt: -1 });
+    }
+
+    const mergedPosts = [...followUnseenPosts, ...posts];
+    const seenPostIds = new Set();
+
+    posts = mergedPosts.filter((post) => {
+      const postId = String(post._id);
+      if (seenPostIds.has(postId)) {
+        return false;
+      }
+      seenPostIds.add(postId);
+      return true;
+    });
+
     const enriched = await Promise.all(
       posts.map(async (p) => ({
         ...p.toObject(),
@@ -368,7 +440,7 @@ export const getPostsNotByMe = async (req, res) => {
     await Promise.all(
       posts.map(async (p) => {
         await createViewActivity(user.userId, p._id);
-      })
+      }),
     );
 
     return res.status(200).json({
