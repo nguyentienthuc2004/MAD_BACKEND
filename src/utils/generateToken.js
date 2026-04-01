@@ -33,10 +33,8 @@ export const verifyAccessToken = (token) => {
 
 export const verifyRefreshToken = async (token) => {
   try {
-    // Verify JWT signature trước
     jwt.verify(token, process.env.JWT_REFRESH_SECRET);
     
-    // Sau đó check trong DB
     const hashToken = crypto.createHash("sha256").update(token).digest("hex");
     const refreshToken = await RefreshToken.findOne({
       hashToken,
@@ -44,7 +42,6 @@ export const verifyRefreshToken = async (token) => {
     });
     return refreshToken;
   } catch (error) {
-    // Token không hợp lệ hoặc hết hạn
     return null;
   }
 };
@@ -60,7 +57,6 @@ export const revokeAllUserRefreshTokens = async (userId) => {
 
 //xóa token cũ, tạo token mới
 export const rotateRefreshToken = async (oldToken, userId) => {
-  // Truyền oldToken gốc vào revokeRefreshToken (nó sẽ tự hash)
   await revokeRefreshToken(oldToken);
   return await generateRefreshToken(userId);
 };

@@ -3,6 +3,7 @@ import { authenticate } from "../middleware/auth.middleware.js";
 import {
   getNotifications,
   markAsRead,
+  markAsUnread,
   markAllAsRead,
   deleteNotification,
   getUnreadCount,
@@ -202,6 +203,7 @@ router.put("/mark-read-all", authenticate, markAllAsRead);
  *         description: Notification not found
  */
 router.put("/:notificationId/read", authenticate, markAsRead);
+router.put("/:notificationId/unread", authenticate, markAsUnread);
 
 /**
  * @swagger

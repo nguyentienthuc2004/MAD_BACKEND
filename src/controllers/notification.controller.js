@@ -56,20 +56,18 @@ export const markAsRead = async (req, res) => {
       });
     }
 
-    const notification = await Notification.findOne({
-      _id: notificationId,
-      userId,
-    });
+    const result = await Notification.updateOne(
+      { _id: notificationId, userId },
+      { $set: { isRead: true } },
+      { timestamps: false },
+    );
 
-    if (!notification) {
+    if (!result.matchedCount && !result.modifiedCount) {
       return res.status(404).json({
         success: false,
         message: "Notification not found",
       });
     }
-
-    notification.isRead = true;
-    await notification.save();
 
     res.status(200).json({
       success: true,
@@ -84,13 +82,52 @@ export const markAsRead = async (req, res) => {
   }
 };
 
+export const markAsUnread = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const userId = req.user.userId;
+
+    if (!isValidObjectId(notificationId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid notification ID format",
+      });
+    }
+
+    const result = await Notification.updateOne(
+      { _id: notificationId, userId },
+      { $set: { isRead: false } },
+      { timestamps: false },
+    );
+
+    if (!result.matchedCount && !result.modifiedCount) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Notification marked as unread",
+    });
+  } catch (error) {
+    console.error("Mark as unread error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 export const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user.userId;
 
     const result = await Notification.updateMany(
       { userId, isRead: false },
-      { isRead: true }
+      { $set: { isRead: true } },
+      { timestamps: false },
     );
 
     res.status(200).json({
