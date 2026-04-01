@@ -46,7 +46,7 @@ const router = express.Router();
  *       400:
  *         description: Search query is required
  */
-router.get("/users", searchUsers);
+router.get("/users", authenticate, searchUsers);
 
 /**
  * @swagger
@@ -158,6 +158,6 @@ router.get("/trending-hashtags", getTrendingHashtags);
  *       400:
  *         description: Search query is required
  */
-router.get("/global", globalSearch);
+router.get("/global", authenticate, globalSearch);
 
 export default router;
