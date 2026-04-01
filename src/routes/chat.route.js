@@ -517,9 +517,79 @@ router.delete("/groups/:roomId/leave", leaveGroup);
  */
 router.delete("/rooms/:roomId/delete", deleteRoomChatForUser);
 
-
-
+/**
+ * @swagger
+ * /api/chat/room/{roomId}/title:
+ *   patch:
+ *     summary: Đổi tiêu đề phòng chat
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Tiêu đề mới
+ *     responses:
+ *       200:
+ *         description: Đổi tiêu đề thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
 router.patch("/room/:roomId/title", changeRoomTitle);
 
+/**
+ * @swagger
+ * /api/chat/room/{roomId}/avatar:
+ *   patch:
+ *     summary: Đổi avatar phòng chat
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Đổi avatar thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Không tìm thấy phòng
+ */
 router.patch("/room/:roomId/avatar", upload.single("avatar"), changeRoomAvatar);
 export default router;

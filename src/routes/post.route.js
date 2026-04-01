@@ -143,12 +143,81 @@ router.put("/edit/:postId", upload.array("images", 10), editPost);
  */
 router.delete("/delete/:postId", deletePost);
 
+/**
+ * @swagger
+ * /api/posts/getPostsNotByMe:
+ *   get:
+ *     summary: Get posts not created by current user
+ *     tags: [Posts]
+ *     responses:
+ *       200:
+ *         description: Posts retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.get("/getPostsNotByMe", getPostsNotByMe);
 
+/**
+ * @swagger
+ * /api/posts/{postId}:
+ *   get:
+ *     summary: Get post by ID
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Post ID
+ *     responses:
+ *       200:
+ *         description: Post retrieved successfully
+ *       404:
+ *         description: Post not found
+ */
 router.get("/:postId", getPostById);
 
+/**
+ * @swagger
+ * /api/posts/{postId}/view:
+ *   post:
+ *     summary: Increase view count for a post
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Post ID
+ *     responses:
+ *       200:
+ *         description: View recorded
+ *       404:
+ *         description: Post not found
+ */
 router.post("/:postId/view", viewPost)
 
+/**
+ * @swagger
+ * /api/posts/likedByUser/{userId}:
+ *   get:
+ *     summary: Get posts liked by a user
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Posts liked by user
+ *       404:
+ *         description: User not found
+ */
 router.get("/likedByUser/:userId", getPostsLikedByUser);
 
 

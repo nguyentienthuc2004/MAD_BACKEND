@@ -203,6 +203,32 @@ router.put("/mark-read-all", authenticate, markAllAsRead);
  *         description: Notification not found
  */
 router.put("/:notificationId/read", authenticate, markAsRead);
+
+/**
+ * @swagger
+ * /api/notifications/{notificationId}/unread:
+ *   put:
+ *     summary: Mark a notification as unread
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification marked as unread
+ *       400:
+ *         description: Invalid notification ID
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Notification not found
+ */
 router.put("/:notificationId/unread", authenticate, markAsUnread);
 
 /**
