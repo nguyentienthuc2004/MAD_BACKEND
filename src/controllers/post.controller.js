@@ -137,10 +137,6 @@ export const createPost = async (req, res) => {
       moderationStatus: imageModerationResult.isSensitive ? "flagged" : "clean",
       moderationFlags: imageModerationResult.flags,
     });
-
-    // Ghi nhận hoạt động xem (view) khi tạo bài viết
-    await createViewActivity(user.userId, newPost._id);
-
     return res.status(201).json({
       success: true,
       message: "Post created successfully",
