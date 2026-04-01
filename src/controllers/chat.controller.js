@@ -1099,6 +1099,76 @@ export const removeMember = async (req, res) => {
         return res.status(500).json({ success: false, message: "Lỗi máy chủ", details: error.message });
     }
 };
+
+// [DELETE] api/chat/groups/:roomId/leave
+export const leaveGroup = async (req, res) => {
+    try {
+        const roomId = req.params.roomId;
+        const userId = req.user.userId;
+
+        const room = await RoomChat.findOne({
+            _id: roomId,
+            isDeleted: false,
+        });
+
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message: "Phòng chat không tồn tại",
+            });
+        }
+
+        if (room.typeRoom !== "group") {
+            return res.status(400).json({
+                success: false,
+                message: "Chỉ nhóm chat mới có thể rời nhóm",
+            });
+        }
+
+        const me = room.users.find((u) => String(u.user_id) === String(userId));
+        if (!me) {
+            return res.status(403).json({
+                success: false,
+                message: "Bạn không thuộc nhóm chat này",
+            });
+        }
+
+        if (me.role === "owner") {
+            return res.status(400).json({
+                success: false,
+                message: "Chủ nhóm không thể rời nhóm. Hãy chuyển quyền chủ nhóm trước.",
+            });
+        }
+
+        room.users = room.users.filter((u) => String(u.user_id) !== String(userId));
+        await room.save();
+
+        try {
+            const io = req.app.get("io");
+            if (io) {
+                io.to(String(roomId)).emit("SERVER_MEMBER_LEFT", {
+                    roomId: String(roomId),
+                    userId: String(userId),
+                    userName: me.nickname || "Một thành viên",
+                });
+            }
+        } catch (socketError) {
+            console.error("Emit SERVER_MEMBER_LEFT error:", socketError);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã rời khỏi nhóm",
+            data: { roomId: String(roomId) },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi máy chủ",
+            details: error.message,
+        });
+    }
+};
 // [PATCH] api/chat/room/:roomId/title
 export const changeRoomTitle = async (req, res) => {
     const roomId = req.params.roomId;
