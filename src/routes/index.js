@@ -8,6 +8,7 @@ import chatRoutes from "./chat.route.js";
 import searchRoutes from "./search.route.js";
 import followRoutes from "./follow.route.js";
 import musicRoutes from "./music.route.js";
+import userActivityRoutes from "./userActivity.route.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 
 const routes = (app) => {
@@ -21,6 +22,7 @@ const routes = (app) => {
   app.use("/api/search", searchRoutes);
   app.use("/api/follow", followRoutes);
   app.use("/api/musics", authenticate, musicRoutes);
+  app.use("/api/activities", userActivityRoutes);
 };
 
 export default routes;
